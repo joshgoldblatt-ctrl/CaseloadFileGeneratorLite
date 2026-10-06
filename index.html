@@ -1,12 +1,31 @@
 <!--
 ================================================================================
   App:          LaGuardia Navigate Caseload Generator Lite
-  Version:      1.6
+  Version:      2.0
   Released:     October 6, 2026
   Developed by: Josh Goldblatt using Claude
 ================================================================================
   CHANGELOG (most recent first)
 --------------------------------------------------------------------------------
+  v2.0  2026-10-06
+    - Semester picker removed. Processing starts directly from the Process
+      Files button; nothing is asked beyond the file. The export no longer has
+      a Semester column.
+    - Health Sciences / clinical pairing removed. Lite no longer appends
+      "Health Sciences" to Advising Office or the "Health Sciences (no
+      advisor)" placeholder to Professional Advisor for students carrying the
+      term-specific "Enrolled in any Clinical Course - YYYY Season Term"
+      category. Advising Office now comes only from Assigned Staff advisor
+      roles. The "Enrolled in any Clinical Course" categories still appear in
+      the Category Manager (featured) and can be exported as Yes/No columns.
+    - Removed functions: selectTerm, updateSemesterDisplay, getSelectedSemester,
+      clinicalCategoryEntry, CLINICAL_TERM_ALIASES; runProcessing() takes no
+      argument. CONSTANTS.PLACEHOLDERS is retained but no longer written.
+    - Effect on the Overview: "No Professional Advisor" under the Single Office
+      card will normally be 0, and clinical-only students now count as "No
+      Office" rather than "Health Sciences".
+    - Major version because the input flow and the Advising Office definition
+      both changed. The full Caseload Generator is unaffected.
   v1.6  2026-10-06
     - "Advising Office" tab renamed "Overview" (tab id unchanged).
     - Overview keeps the summary cards and the "Students with Office
@@ -99,7 +118,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Navigate Caseload Generator Lite v1.6</title>
+    <title>Navigate Caseload Generator Lite v2.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js">
 </script>
     <style>
@@ -271,7 +290,7 @@
     <div class="container">
         <h1>📚 Navigate Caseload Generator Lite</h1>
         <p style="margin-top: -20px; margin-bottom: 5px; color: #666; font-style: italic;">Developed by Josh Goldblatt using Claude</p>
-        <div class="subtitle" style="margin-bottom: 16px;">Version 1.6 - Released October 6, 2026</div>
+        <div class="subtitle" style="margin-bottom: 16px;">Version 2.0 - Released October 6, 2026</div>
 
         <!-- Changelog Section -->
         <div style="margin-bottom: 24px; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;">
@@ -280,6 +299,16 @@
                 <span id="changelogArrow" style="font-size:12px; color:#6c757d; transition:transform 0.25s ease;">▼</span>
             </button>
             <div id="changelogBody" style="display:none; padding:0 18px 16px; background:#fff; max-height:420px; overflow-y:auto;">
+                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid #f0f0f0;">
+                    <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px;">
+                        <span style="font-weight:700; font-size:14px; color:#007bff;">v2.0</span>
+                        <span style="font-size:12px; color:#6c757d;">October 6, 2026</span>
+                    </div>
+                    <ul style="margin:4px 0 0 0; padding-left:20px;">
+                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Semester picker removed:</strong> upload a file and click Process Files. No Semester column in the export.</li>
+                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Health Sciences pairing removed:</strong> Advising Office comes only from Assigned Staff advisor roles. The "Enrolled in any Clinical Course" categories remain in the Category Manager.</li>
+                    </ul>
+                </div>
                 <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid #f0f0f0;">
                     <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px;">
                         <span style="font-weight:700; font-size:14px; color:#007bff;">v1.6</span>
@@ -354,35 +383,7 @@
             </div>
         </div>
         
-        <!-- Semester Picker -->
-        <div style="background-color: #f0f4ff; border: 1px solid #c5d0f0; border-radius: 10px; padding: 20px 24px; margin: 24px 0;">
-            <h3 style="margin: 0 0 14px 0; color: #2c3e7a; font-size: 16px;">📅 Semester Selection <span style="color: #dc3545; font-size: 13px; font-weight: normal;">(required)</span></h3>
-            <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
-                <div>
-                    <div style="font-size: 12px; color: #555; margin-bottom: 6px; font-weight: 600;">TERM</div>
-                    <div style="display: flex; gap: 8px;">
-                        <button id="termFall" onclick="selectTerm('Fall')" style="padding: 8px 20px; border-radius: 6px; border: 2px solid #c5d0f0; background: #fff; color: #555; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Fall</button>
-                        <button id="termSpring" onclick="selectTerm('Spring')" style="padding: 8px 20px; border-radius: 6px; border: 2px solid #c5d0f0; background: #fff; color: #555; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Spring</button>
-                    </div>
-                </div>
-                <div>
-                    <div style="font-size: 12px; color: #555; margin-bottom: 6px; font-weight: 600;">YEAR</div>
-                    <select id="semesterYear" onchange="updateSemesterDisplay()" style="padding: 8px 14px; border-radius: 6px; border: 2px solid #c5d0f0; font-size: 14px; font-weight: 600; color: #2c3e7a; background: #fff; cursor: pointer;">
-                        <option value="" selected>— select —</option>
-                        <option value="2024">2024</option>
-                        <option value="2025">2025</option>
-                        <option value="2026">2026</option>
-                        <option value="2027">2027</option>
-                        <option value="2028">2028</option>
-                        <option value="2029">2029</option>
-                        <option value="2030">2030</option>
-                    </select>
-                </div>
-                <div style="margin-top: 18px; padding: 8px 18px; background: #2c3e7a; color: #fff; border-radius: 6px; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">
-                    <span id="semesterDisplay">Not selected</span>
-                </div>
-            </div>
-        </div>
+        <!-- v2.0: semester picker removed -->
 
         <div style="text-align: center; margin: 30px 0;">
             <button id="processBtn" disabled style="background-color: #6c757d; color: white; border: none; padding: 16px 32px; border-radius: 8px; cursor: not-allowed; font-size: 18px; font-weight: bold; box-shadow: 0 4px 8px rgba(108,117,125,0.3); transition: all 0.3s ease;">🚀 Process Files</button>
@@ -559,49 +560,7 @@ function toAdvisingOfficeFromRole(roleLabel) {
             return CONSTANTS.ADMIT_TYPE.ALIASES[v.toLowerCase()] || v; // unknown values pass through untouched
         }
 
-        // SEMESTER PICKER
-        // No default. Josh processes files across term boundaries and a pre-set
-        // Spring silently produced wrong Semester stamps and wrong clinical matches.
-        // Both term and year must be chosen explicitly before Process Files will run.
-        let selectedTerm = null;
-
-        function selectTerm(term) {
-            selectedTerm = term;
-            document.getElementById('termFall').style.background = term === 'Fall' ? '#2c3e7a' : '#fff';
-            document.getElementById('termFall').style.color = term === 'Fall' ? '#fff' : '#555';
-            document.getElementById('termFall').style.borderColor = term === 'Fall' ? '#2c3e7a' : '#c5d0f0';
-            document.getElementById('termSpring').style.background = term === 'Spring' ? '#2c3e7a' : '#fff';
-            document.getElementById('termSpring').style.color = term === 'Spring' ? '#fff' : '#555';
-            document.getElementById('termSpring').style.borderColor = term === 'Spring' ? '#2c3e7a' : '#c5d0f0';
-            updateSemesterDisplay();
-        }
-
-        function updateSemesterDisplay() {
-            const sem = getSelectedSemester();
-            const el = document.getElementById('semesterDisplay');
-            el.textContent = sem || 'Not selected';
-            el.parentElement.style.background = sem ? '#2c3e7a' : '#b0b6c8';
-        }
-
-        // Returns "Fall 2026" etc., or null if either term or year is unset.
-        function getSelectedSemester() {
-            const year = document.getElementById('semesterYear').value;
-            if (!selectedTerm || !year) return null;
-            return selectedTerm + ' ' + year;
-        }
-
-        // Builds the exact Category entry that marks clinical enrollment for the
-        // selected semester. "Spring 2026" -> "Enrolled in any Clinical Course - 2026 Spring Term".
-        // Derived from the same value that stamps the Semester column, so the two
-        // can never disagree. If a future raw export labels a term differently,
-        // add an alias to CLINICAL_TERM_ALIASES keyed by the "Season YYYY" string.
-        const CLINICAL_TERM_ALIASES = {};
-        function clinicalCategoryEntry(semester) {
-            if (CLINICAL_TERM_ALIASES[semester]) return CLINICAL_TERM_ALIASES[semester];
-            const m = (semester || '').match(/^(Fall|Spring)\s+(\d{4})$/);
-            if (!m) return null;
-            return `Enrolled in any Clinical Course - ${m[2]} ${m[1]} Term`;
-        }
+        // v2.0: semester picker and clinical-term matching removed from Lite.
 
         // CHANGELOG TOGGLE
         function toggleChangelog() {
@@ -1292,16 +1251,10 @@ function toAdvisingOfficeFromRole(roleLabel) {
         // was removed from Lite. The zero-match warning inside runProcessing remains.
 
         function processFiles() {
-            const semester = getSelectedSemester();
-            if (!semester) {
-                utils.showStatus('Select both a term (Fall / Spring) and a year before processing.', 'error');
-                document.getElementById('semesterDisplay').parentElement.style.background = '#b02a37';
-                return;
-            }
-            runProcessing(semester);
+            runProcessing();
         }
 
-        function runProcessing(semester) {
+        function runProcessing() {
             utils.showProgress(true);
             utils.updateProgress(0, 'Starting file processing...', 'Initializing data structures');
             
@@ -1372,12 +1325,6 @@ function toAdvisingOfficeFromRole(roleLabel) {
 
                     utils.updateProgress(35, 'Extracting staff assignments...', 'Processing advisor, faculty, and peer assignments');
                     
-                    // Clinical enrollment is matched on the EXACT term-specific Category entry
-                    // for the selected semester. The raw file can carry both Spring and Fall
-                    // flags on one student, so a term-agnostic substring match over-counts.
-                    const clinicalEntry = clinicalCategoryEntry(semester);
-                    let clinicalMatchCount = 0;
-
                     records = records.map(record => {
                         const advisorInfo = utils.extractProfessionalAdvisorAndOffice(record[CONSTANTS.COLUMNS.ASSIGNED_STAFF] || '');
                         let professionalAdvisor = advisorInfo.professionalAdvisor;
@@ -1387,22 +1334,7 @@ function toAdvisingOfficeFromRole(roleLabel) {
                         // paired with Professional Advisor / Staff ID for the Metrics App.
                         let advisingOffice = advisorInfo.advisingOffice;
 
-                        // Clinical students get "Health Sciences" APPENDED as the last office,
-                        // with a matching placeholder appended to Professional Advisor at the
-                        // same index (Staff ID gets its placeholder in performLookups). Appending,
-                        // never prepending, keeps every professional advisor aligned with its
-                        // own office. Category entries contain no commas, so a split on ','
-                        // followed by an exact compare is safe.
-                        const category = record[CONSTANTS.COLUMNS.CATEGORY] || '';
-                        if (clinicalEntry) {
-                            const isClinical = category.split(',').some(c => c.trim() === clinicalEntry);
-                            if (isClinical) {
-                                clinicalMatchCount++;
-                                const ph = CONSTANTS.PLACEHOLDERS.ADVISOR;
-                                advisingOffice = advisingOffice ? `${advisingOffice}; Health Sciences` : 'Health Sciences';
-                                professionalAdvisor = professionalAdvisor ? `${professionalAdvisor}; ${ph}` : ph;
-                            }
-                        }
+                        // v2.0: no Health Sciences / clinical pairing in Lite.
                         record[CONSTANTS.COLUMNS.PROFESSIONAL_ADVISOR] = professionalAdvisor;
                         record[CONSTANTS.COLUMNS.ADVISING_OFFICE] = advisingOffice;
                         
@@ -1423,16 +1355,6 @@ function toAdvisingOfficeFromRole(roleLabel) {
                         return record;
                     });
                     
-                    // Safeguard: a semester/file mismatch would otherwise produce a file with
-                    // no Health Sciences assignments and no indication anything was wrong.
-                    if (!clinicalEntry) {
-                        console.warn('Could not build a clinical Category entry from semester:', semester);
-                    } else if (clinicalMatchCount === 0) {
-                        utils.showStatus(`No "${clinicalEntry}" entries found — check the selected semester or the raw file's Category data. No Health Sciences office assignments were made.`, 'warning');
-                    }
-                    appState.clinicalMatchCount = clinicalMatchCount;
-                    appState.clinicalEntry = clinicalEntry;
-
                     // v1.5: inventory of relationship types for the Assigned Staff tab
                     appState.staffTypes = utils.scanStaffTypes(records, appState.staffTypes);
 
@@ -1474,13 +1396,6 @@ function toAdvisingOfficeFromRole(roleLabel) {
                         }
                     }
                     
-                    // Stamp semester onto every record
-                    const semesterValue = semester; // the value the confirmation dialog showed
-                    records = records.map(record => {
-                        record['Semester'] = semesterValue;
-                        return record;
-                    });
-
                     appState.processedData = records;
                     
                     utils.updateProgress(80, 'Calculating analytics...', 'Generating dashboard statistics and insights');
