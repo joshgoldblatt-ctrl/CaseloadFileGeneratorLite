@@ -1,12 +1,60 @@
 <!--
 ================================================================================
   App:          LaGuardia Navigate Caseload Generator Lite
-  Version:      1.2
-  Released:     October 5, 2026
+  Version:      1.6
+  Released:     October 6, 2026
   Developed by: Josh Goldblatt using Claude
 ================================================================================
   CHANGELOG (most recent first)
 --------------------------------------------------------------------------------
+  v1.6  2026-10-06
+    - "Advising Office" tab renamed "Overview" (tab id unchanged).
+    - Overview keeps the summary cards and the "Students with Office
+      Assignments" table. Removed: the "Students with No Office Assignment"
+      breakdown table and the Median Caseload by Advising Office section.
+    - Advisor Assignments table kept (advisor, office, exclusive / shared /
+      total) but without the checkbox column and Select/Deselect buttons,
+      which only existed to drive the removed median tables. The
+      toggleAdvisor / selectAllAdvisors / generateMedianCaseloadTables
+      functions remain in the file but are no longer called.
+    - New "Students by Major" table at the bottom of Overview: one row per
+      major (the Category "Major:" text, i.e. the "Major with subplan" column)
+      with student count and % of all, sorted by count, with a TOTAL row.
+      Students with no Major: entry show as "(no major listed)".
+  v1.5  2026-10-06
+    - Any Navigate export: the header row is now found by scanning for the
+      first row that contains a Student ID column (Student ID / Student_ID /
+      StudentID / EMPLID), so headers on line 1 work as well as Navigate's
+      two-line preamble. Column names match case-insensitively with aliases:
+      Category or Categories, Assigned Staff or Assigned_Staff. A missing
+      column error now lists the headers found. Upload label changed to
+      "Main CSV File (Any Navigate Export)".
+    - Removed the pre-processing confirmation dialog. Processing starts as
+      soon as Process Files is clicked (semester still required). Health
+      Sciences is still assigned from the term-specific "Enrolled in any
+      Clinical Course" category; the zero-match warning remains.
+    - New "Assigned Staff" tab (between Advising Office and Category Manager).
+      Lists every relationship type found in Assigned Staff with student and
+      staff counts. Advisor relationships (ROLES.ADVISOR and SECONDARY_ADVISOR)
+      are shown checked and locked because they already drive Advising Office /
+      Professional Advisor. Every other relationship type has a checkbox,
+      nothing ticked by default; ticked types export as their own column headed
+      with the exact Navigate relationship text, holding the staff name(s)
+      "; "-joined. All "Program Director - X" variants combine into a single
+      "Program Director" column with values "Name (Program)". Ticks persist
+      across re-runs in the same session.
+    - Consequence: Faculty Mentor, Peer Advisor, Program Director and Librarian
+      are no longer fixed export columns; tick them on the new tab to include
+      them. "Clinical Health Faculty Advisor" is now its own relationship
+      (previously merged into Faculty Mentor).
+    - Category Manager buckets reduced to New Student Cohorts, Transfer Out,
+      Transfer In, Financial Aid, Service Indicators, Student Groups, and
+      Enrollment & Sessions; all other categories fall into "Other". (The old
+      "Majors" bucket never displayed because "Major:" entries are excluded
+      before grouping; it is simply gone now.)
+    - Export column "Major" renamed "Major with subplan" (the value is the
+      Category "Major:" text, which includes the subplan). "Navigate Major"
+      (the raw Major column) is unchanged.
   v1.2  2026-10-05
     - Removed the Academic Departments tab and the two export columns
       "Student Academic Department" and "Student Academic Department_sub".
@@ -51,7 +99,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Navigate Caseload Generator Lite v1.2</title>
+    <title>Navigate Caseload Generator Lite v1.6</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js">
 </script>
     <style>
@@ -223,7 +271,7 @@
     <div class="container">
         <h1>📚 Navigate Caseload Generator Lite</h1>
         <p style="margin-top: -20px; margin-bottom: 5px; color: #666; font-style: italic;">Developed by Josh Goldblatt using Claude</p>
-        <div class="subtitle" style="margin-bottom: 16px;">Version 1.2 - Released October 5, 2026</div>
+        <div class="subtitle" style="margin-bottom: 16px;">Version 1.6 - Released October 6, 2026</div>
 
         <!-- Changelog Section -->
         <div style="margin-bottom: 24px; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;">
@@ -232,6 +280,28 @@
                 <span id="changelogArrow" style="font-size:12px; color:#6c757d; transition:transform 0.25s ease;">▼</span>
             </button>
             <div id="changelogBody" style="display:none; padding:0 18px 16px; background:#fff; max-height:420px; overflow-y:auto;">
+                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid #f0f0f0;">
+                    <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px;">
+                        <span style="font-weight:700; font-size:14px; color:#007bff;">v1.6</span>
+                        <span style="font-size:12px; color:#6c757d;">October 6, 2026</span>
+                    </div>
+                    <ul style="margin:4px 0 0 0; padding-left:20px;">
+                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Overview tab</strong> (renamed from Advising Office): summary cards, Students with Office Assignments, Advisor Assignments (no checkboxes), and a new Students by Major table. The No Office breakdown and Median Caseload sections were removed.</li>
+                    </ul>
+                </div>
+                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid #f0f0f0;">
+                    <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px;">
+                        <span style="font-weight:700; font-size:14px; color:#007bff;">v1.5</span>
+                        <span style="font-size:12px; color:#6c757d;">October 6, 2026</span>
+                    </div>
+                    <ul style="margin:4px 0 0 0; padding-left:20px;">
+                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Any Navigate export:</strong> header row detected automatically (line 1 or after the preamble); accepts Category/Categories and Student ID/EMPLID spellings.</li>
+                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>No confirmation dialog:</strong> processing starts on click; Health Sciences logic unchanged.</li>
+                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Assigned Staff tab:</strong> tick which relationship types (Faculty Mentor, Peer Advisor, Librarian, Program Director, and any others in the file) to export as columns. Advisor relationships are built in and locked. Nothing ticked by default.</li>
+                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Category Manager:</strong> buckets reduced to New Student Cohorts, Transfer Out, Transfer In, Financial Aid, Service Indicators, Student Groups, Enrollment &amp; Sessions, and Other.</li>
+                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Export:</strong> "Major" column renamed "Major with subplan".</li>
+                    </ul>
+                </div>
                 <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid #f0f0f0;">
                     <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px;">
                         <span style="font-weight:700; font-size:14px; color:#007bff;">v1.2</span>
@@ -274,7 +344,7 @@
                 <h2 style="color: #007bff; margin: 0;">Required File</h2>
             </div>
             <div class="file-input-wrapper">
-                <label for="mainFile">Main CSV File (Enrollment and Caseload Report): <span style="color: #dc3545; font-weight: bold;">*REQUIRED</span></label>
+                <label for="mainFile">Main CSV File (Any Navigate Export): <span style="color: #dc3545; font-weight: bold;">*REQUIRED</span></label>
                 <div class="help-text">
                     <strong>Must contain:</strong> Student ID, Assigned Staff, Category columns<br>
                     <strong>Format:</strong> CSV file exported from your enrollment system
@@ -419,7 +489,7 @@ ROLES: {
                 LIBRARIAN: 'Librarian',
                 ACADEMIC_STANDING: 'Academic Standing',
                 GRADUATION_STATUS: 'Graduation Status',
-                Major: 'Major',
+                Major: 'Major with subplan', // v1.5: export header (value is the Category 'Major:' text, which carries the subplan)
                 NAV_M: 'Navigate Major',
                 STUDENT_TYPE: 'Admit Type'
             },
@@ -932,6 +1002,58 @@ function toAdvisingOfficeFromRole(roleLabel) {
             // and returns "Name (Program)" per director. The role text can itself contain
             // parentheses, e.g. "Program Director - English (General Option)", so the role
             // is taken as everything after the first "(" with one trailing ")" removed.
+            // v1.5: generic Assigned Staff parsing for the Assigned Staff tab.
+            // "Last, First (Relationship)" -> {name, rel}; rel is everything after the
+            // first "(" with one trailing ")" removed, so nested parentheses survive.
+            parseStaffEntry(entry) {
+                const e = (entry || '').trim();
+                const i = e.indexOf('(');
+                if (i === -1) return null;
+                const name = e.slice(0, i).trim();
+                const rel = e.slice(i + 1).replace(/\)\s*$/, '').trim();
+                return (name && rel) ? { name, rel } : null;
+            },
+            // Key under which a relationship is tracked/exported. Advisor roles are
+            // locked (they feed Advising Office / Professional Advisor). All
+            // "Program Director - X" variants collapse into one "Program Director" key.
+            staffTypeKeyFor(rel) {
+                const l = rel.toLowerCase();
+                if (CONSTANTS.ROLES.ADVISOR.includes(l) || CONSTANTS.ROLES.SECONDARY_ADVISOR.includes(l)) return { key: 'advisor:' + l, kind: 'advisor', label: rel, column: null };
+                if (/^program director(\s*-|$)/i.test(rel)) return { key: 'program director', kind: 'optional', label: 'Program Director', column: 'Program Director' };
+                return { key: l, kind: 'optional', label: rel, column: rel };
+            },
+            scanStaffTypes(records, previous) {
+                const types = {};
+                records.forEach(record => {
+                    const sid = (record[CONSTANTS.COLUMNS.STUDENT_ID] || '').toString().trim();
+                    (record[CONSTANTS.COLUMNS.ASSIGNED_STAFF] || '').split(';').forEach(ent => {
+                        const p = utils.parseStaffEntry(ent);
+                        if (!p) return;
+                        const t = utils.staffTypeKeyFor(p.rel);
+                        if (!types[t.key]) types[t.key] = { key: t.key, kind: t.kind, label: t.label, column: t.column, students: new Set(), staff: {}, selected: false };
+                        types[t.key].students.add(sid);
+                        if (!types[t.key].staff[p.name]) types[t.key].staff[p.name] = new Set();
+                        types[t.key].staff[p.name].add(sid);
+                    });
+                });
+                // keep ticks from a previous run in this session
+                if (previous) Object.keys(types).forEach(k => { if (previous[k] && previous[k].selected) types[k].selected = true; });
+                return types;
+            },
+            // Value for one relationship column on one record.
+            staffValueFor(record, type) {
+                const names = [];
+                (record[CONSTANTS.COLUMNS.ASSIGNED_STAFF] || '').split(';').forEach(ent => {
+                    const p = utils.parseStaffEntry(ent);
+                    if (!p || utils.staffTypeKeyFor(p.rel).key !== type.key) return;
+                    if (type.key === 'program director') {
+                        const m = p.rel.match(/^Program Director\s*-\s*(.+)$/i);
+                        names.push(m ? `${p.name} (${m[1].trim()})` : p.name);
+                    } else names.push(p.name);
+                });
+                return [...new Set(names)].join('; ');
+            },
+
             extractProgramDirectors(staffList) {
                 return staffList.split(';')
                     .map(s => s.trim())
@@ -1166,57 +1288,8 @@ function toAdvisingOfficeFromRole(roleLabel) {
         // DATA PROCESSING
         // Pre-scan the raw main file for the clinical Category entry so the
         // confirmation can show a real count BEFORE anything is written.
-        function prescanClinical(clinicalEntry) {
-            const mainData = appState.data.main;
-            if (!clinicalEntry || !mainData || mainData.length < 3) return null;
-            const body = mainData.slice(2);
-            const headers = body[0].map(h => (h || '').toString().trim().toLowerCase());
-            const ci = headers.indexOf('category');
-            if (ci === -1) return null;
-            let n = 0;
-            for (let i = 1; i < body.length; i++) {
-                const cat = (body[i][ci] || '').toString();
-                if (cat.split(',').some(c => c.trim() === clinicalEntry)) n++;
-            }
-            return n;
-        }
-
-        function showProcessConfirm(semester, clinicalEntry, matchCount) {
-            const zero = matchCount === 0;
-            const unknown = matchCount === null;
-            const overlay = document.createElement('div');
-            overlay.id = 'processConfirmOverlay';
-            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(20,24,40,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;';
-            overlay.innerHTML = `
-              <div style="background:#fff;border-radius:12px;max-width:560px;width:calc(100% - 32px);box-shadow:0 18px 50px rgba(0,0,0,0.35);overflow:hidden;font-family:inherit;">
-                <div style="background:#2c3e7a;color:#fff;padding:18px 24px;">
-                  <div style="font-size:12px;letter-spacing:0.6px;text-transform:uppercase;opacity:0.8;">Confirm before processing</div>
-                  <div style="font-size:30px;font-weight:800;margin-top:4px;">${semester}</div>
-                </div>
-                <div style="padding:20px 24px;font-size:14px;color:#333;line-height:1.55;">
-                  <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;">
-                    <div style="color:#6c757d;">Semester column</div><div><strong>${semester}</strong> on every row</div>
-                    <div style="color:#6c757d;">Clinical match</div><div><code style="background:#f1f3f5;padding:2px 6px;border-radius:4px;">${clinicalEntry || '(could not build entry)'}</code></div>
-                    <div style="color:#6c757d;">Matches in this file</div>
-                    <div>${unknown ? '<em>could not scan</em>' : `<strong style="font-size:18px;color:${zero ? '#b02a37' : '#1e7e34'};">${matchCount.toLocaleString()}</strong> student${matchCount === 1 ? '' : 's'}`}</div>
-                  </div>
-                  <div style="margin-top:14px;padding:10px 12px;background:#f8f9fa;border-left:4px solid #2c3e7a;border-radius:4px;font-size:13px;">
-                    Matching students get <strong>Health Sciences</strong> appended to Advising Office, with
-                    <strong>Health Sciences (no advisor)</strong> / <strong>N/A</strong> placeholders in Professional Advisor / Staff ID.
-                  </div>
-                  ${zero ? `<div style="margin-top:12px;padding:10px 12px;background:#fdecee;border:1px solid #f5c2c7;border-radius:6px;color:#721c24;font-size:13px;"><strong>No students match.</strong> If this file should contain clinical students, the wrong term or year is probably selected. Cancel and check the picker.</div>` : ''}
-                </div>
-                <div style="display:flex;justify-content:flex-end;gap:10px;padding:14px 24px;background:#f8f9fa;border-top:1px solid #e9ecef;">
-                  <button id="processConfirmCancel" style="padding:10px 18px;border-radius:6px;border:1px solid #c5d0f0;background:#fff;color:#2c3e7a;font-weight:600;cursor:pointer;">Cancel</button>
-                  <button id="processConfirmGo" style="padding:10px 22px;border-radius:6px;border:none;background:${zero ? '#b02a37' : '#2c3e7a'};color:#fff;font-weight:700;cursor:pointer;">${zero ? 'Proceed anyway' : 'Proceed'}</button>
-                </div>
-              </div>`;
-            document.body.appendChild(overlay);
-            const close = () => overlay.remove();
-            overlay.querySelector('#processConfirmCancel').onclick = close;
-            overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-            overlay.querySelector('#processConfirmGo').onclick = () => { close(); runProcessing(semester); };
-        }
+        // v1.5: the pre-processing confirmation dialog (semester + clinical match count)
+        // was removed from Lite. The zero-match warning inside runProcessing remains.
 
         function processFiles() {
             const semester = getSelectedSemester();
@@ -1225,9 +1298,7 @@ function toAdvisingOfficeFromRole(roleLabel) {
                 document.getElementById('semesterDisplay').parentElement.style.background = '#b02a37';
                 return;
             }
-            const clinicalEntry = clinicalCategoryEntry(semester);
-            const matchCount = prescanClinical(clinicalEntry);
-            showProcessConfirm(semester, clinicalEntry, matchCount);
+            runProcessing(semester);
         }
 
         function runProcessing(semester) {
@@ -1244,14 +1315,27 @@ function toAdvisingOfficeFromRole(roleLabel) {
                         throw new Error('Main data appears to be too short or missing');
                     }
                     
-                    let data = mainData.slice(2);
-                    const headers = data[0].map(h => h.trim());
+                    // v1.5: find the header row instead of assuming Navigate's two preamble
+                    // lines. The header is the first row containing any accepted Student ID
+                    // spelling, so a file with headers on line 1 works too.
+                    const ID_SPELLINGS = ['student id', 'student_id', 'studentid', 'emplid'];
+                    const headerRowIndex = mainData.findIndex(r => (r || []).some(c => ID_SPELLINGS.includes((c || '').toString().trim().toLowerCase())));
+                    if (headerRowIndex === -1) {
+                        throw new Error('Could not find a header row containing "Student ID" (or EMPLID). First row seen: ' + (mainData[0] || []).join(', '));
+                    }
+                    let data = mainData.slice(headerRowIndex);
+                    const headers = data[0].map(h => (h || '').toString().trim());
 
                     // Normalize headers and apply canonical names (e.g., rename raw 'Major' -> 'Navigate Major')
                     const aliasMap = new Map([
                         ['student id', CONSTANTS.COLUMNS.STUDENT_ID],
+                        ['student_id', CONSTANTS.COLUMNS.STUDENT_ID],
+                        ['studentid', CONSTANTS.COLUMNS.STUDENT_ID],
+                        ['emplid', CONSTANTS.COLUMNS.STUDENT_ID],
                         ['assigned staff', CONSTANTS.COLUMNS.ASSIGNED_STAFF],
+                        ['assigned_staff', CONSTANTS.COLUMNS.ASSIGNED_STAFF],
                         ['category', CONSTANTS.COLUMNS.CATEGORY],
+                        ['categories', CONSTANTS.COLUMNS.CATEGORY], // appointment-report spelling
                         ['major', CONSTANTS.COLUMNS.NAV_M],
                         ['navigate major', CONSTANTS.COLUMNS.NAV_M],
                         ['nav_m', CONSTANTS.COLUMNS.NAV_M],
@@ -1270,12 +1354,10 @@ function toAdvisingOfficeFromRole(roleLabel) {
                     data = data.slice(1);
                     
                     const requiredColumns = [CONSTANTS.COLUMNS.STUDENT_ID, CONSTANTS.COLUMNS.ASSIGNED_STAFF, CONSTANTS.COLUMNS.CATEGORY];
-                    const missingColumns = requiredColumns.filter(reqCol => 
-                        !headers.find(header => header.toLowerCase().includes(reqCol.toLowerCase()))
-                    );
+                    const missingColumns = requiredColumns.filter(reqCol => !normalizedHeaders.includes(reqCol));
                     
                     if (missingColumns.length > 0) {
-                        throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
+                        throw new Error(`Missing required column(s): ${missingColumns.join(', ')}. Headers found: ${headers.join(', ')}`);
                     }
                     
                     utils.updateProgress(20, 'Creating student records...', `Processing ${data.length} student records`);
@@ -1328,13 +1410,9 @@ function toAdvisingOfficeFromRole(roleLabel) {
                         record[CONSTANTS.COLUMNS.SECONDARY_PROFESSIONAL_ADVISOR] = advisorInfo.secondaryProfessionalAdvisor;
                         record[CONSTANTS.COLUMNS.SECONDARY_ADVISING_OFFICE] = advisorInfo.secondaryAdvisingOffice;
                         
-                        const facultyMentor = utils.extractStaffByRole(record[CONSTANTS.COLUMNS.ASSIGNED_STAFF] || '', 'faculty mentor');
-                        const clinicalAdvisor = utils.extractStaffByRole(record[CONSTANTS.COLUMNS.ASSIGNED_STAFF] || '', 'clinical health faculty advisor');
-                        record[CONSTANTS.COLUMNS.FACULTY_MENTOR] = [facultyMentor, clinicalAdvisor].filter(Boolean).join('; ') || null;
-                        
-                        record[CONSTANTS.COLUMNS.PEER_ADVISOR] = utils.extractStaffByRole(record[CONSTANTS.COLUMNS.ASSIGNED_STAFF] || '', 'peer advisor');
-                        record[CONSTANTS.COLUMNS.PROGRAM_DIRECTOR] = utils.extractProgramDirectors(record[CONSTANTS.COLUMNS.ASSIGNED_STAFF] || '');
-                        record[CONSTANTS.COLUMNS.LIBRARIAN] = utils.extractStaffByRole(record[CONSTANTS.COLUMNS.ASSIGNED_STAFF] || '', 'librarian');
+                        // v1.5: Faculty Mentor / Peer Advisor / Program Director / Librarian are no
+                        // longer fixed columns. Every non-advisor relationship is offered on the
+                        // Assigned Staff tab and exported only if ticked.
                         
                         record[CONSTANTS.COLUMNS.ACADEMIC_STANDING] = utils.determineAcademicStanding(record[CONSTANTS.COLUMNS.CATEGORY] || '');
                         record[CONSTANTS.COLUMNS.GRADUATION_STATUS] = utils.determineGraduationStatus(record[CONSTANTS.COLUMNS.CATEGORY] || '');
@@ -1354,6 +1432,9 @@ function toAdvisingOfficeFromRole(roleLabel) {
                     }
                     appState.clinicalMatchCount = clinicalMatchCount;
                     appState.clinicalEntry = clinicalEntry;
+
+                    // v1.5: inventory of relationship types for the Assigned Staff tab
+                    appState.staffTypes = utils.scanStaffTypes(records, appState.staffTypes);
 
                     utils.updateProgress(60, 'Performing data lookups...', 'Matching staff IDs and department information');
                     
@@ -2545,7 +2626,8 @@ analytics.advising = {
                 let dashboardHTML = `
                     <div style="margin-bottom: 20px;">
                         <div style="border-bottom: 2px solid #dee2e6; margin-bottom: 20px;">
-                            <button id="advisingTab" class="tab-button active" onclick="showTab('advising')" style="padding: 10px 20px; margin-right: 10px; border: none; background: none; border-bottom: 3px solid #007bff; font-weight: bold; cursor: pointer; color: #333;">Advising Office</button>
+                            <button id="advisingTab" class="tab-button active" onclick="showTab('advising')" style="padding: 10px 20px; margin-right: 10px; border: none; background: none; border-bottom: 3px solid #007bff; font-weight: bold; cursor: pointer; color: #333;">Overview</button>
+                            <button id="staffTab" class="tab-button" onclick="showTab('staff')" style="padding: 10px 20px; margin-right: 10px; border: none; background: none; border-bottom: 3px solid transparent; cursor: pointer; color: #666;">Assigned Staff</button>
                             ${appState.data.faculty ? '<button id="facultyTab" class="tab-button" onclick="showTab(\'faculty\')" style="padding: 10px 20px; border: none; background: none; border-bottom: 3px solid transparent; cursor: pointer; color: #666;">Faculty Mentors</button>' : ''}
                             ${appState.data.peer ? '<button id="peerTab" class="tab-button" onclick="showTab(\'peer\')" style="padding: 10px 20px; border: none; background: none; border-bottom: 3px solid transparent; cursor: pointer; color: #666;">Peer Advisors</button>' : ''}
                             ${appState.data.ir ? '<button id="studentTypeTab" class="tab-button" onclick="showTab(\'studentType\')" style="padding: 10px 20px; border: none; background: none; border-bottom: 3px solid transparent; cursor: pointer; color: #666;">Admit Type</button>' : ''}
@@ -2567,6 +2649,10 @@ analytics.advising = {
                         ${appState.data.ir ? `<div id="studentTypeContent" class="tab-content" style="display: none;">
                             ${generateStudentTypeDashboard(analytics.studentType)}
                         </div>` : ''}
+                        
+                        <div id="staffContent" class="tab-content" style="display: none;">
+                            ${generateAssignedStaffDashboard(appState.staffTypes, data.length)}
+                        </div>
                         
                         <div id="categoryContent" class="tab-content" style="display: none;">
                             ${generateCategoryManagerDashboard(analytics.category)}
@@ -2629,7 +2715,7 @@ function generateAdvisingDashboard(analytics, totalRecords) {
     const singleOfficesAlpha = [...singleOffices].sort(([a],[b]) => a.localeCompare(b));
     const multipleOfficesAlpha = [...multipleOffices].sort(([a],[b]) => a.localeCompare(b));
 
-    let html = '<h4 style="color: #333; margin-bottom: 15px;">📊 Advising Office Dashboard</h4>';
+    let html = '<h4 style="color: #333; margin-bottom: 15px;">📊 Overview</h4>';
 
     // Engaging summary cards
     html += `
@@ -2870,100 +2956,15 @@ function generateAdvisingDashboard(analytics, totalRecords) {
         });
     }
 
-    // TABLE 2: Students with No Office Assignment
-    if (noOfficeCount > 0) {
-        html += '<h5 style="color:#333;margin:30px 0 10px;">Students with No Office Assignment</h5>';
-        const headers = [
-            { title: 'Category', align: 'left' },
-            { title: 'Student Count', align: 'right' },
-            { title: 'Percentage', align: 'right' }
-        ];
-        const rows = [];
+    // v1.6: the "Students with No Office Assignment" breakdown and the Median Caseload
+    // section were removed from Lite. The No Office summary card above remains.
 
-        const addBreakdownRow = (label, value) => {
-            if (value > 0) {
-                const p = ((value / noOfficeCount) * 100).toFixed(1);
-                rows.push({
-                    cells: [
-                        { content: label },
-                        { content: value, style: 'text-align: right;' },
-                        { content: `${p}%`, style: 'text-align: right;' }
-                    ]
-                });
-            }
-        };
-
-        addBreakdownRow('Non-Degree Students', noOfficeBreakdown.nonDegree);
-        addBreakdownRow('Entering Freshman (SG:FRSH)', noOfficeBreakdown.enteringFreshman);
-        addBreakdownRow('Entering Transfer (SG:TRNS)', noOfficeBreakdown.enteringTransfer);
-        addBreakdownRow('Readmit Students (SG:RADM)', noOfficeBreakdown.readmit);
-        addBreakdownRow('College Now Students (SG:CNOW)', noOfficeBreakdown.collegeNow);
-        addBreakdownRow('Potential SEEK/CD Students (SG:SCD1)', noOfficeBreakdown.potentialSeekCD);
-        addBreakdownRow('Conditional SEEK/CD Students (SG:SCD2)', noOfficeBreakdown.conditionalSeekCD);
-        addBreakdownRow('Early College Initiative Students (SG:ECI)', noOfficeBreakdown.earlyCollege);
-        addBreakdownRow('International Students (SG:ISS)', noOfficeBreakdown.internationalStudent);
-        addBreakdownRow('ASAP Accepts Students (SG:ASP3)', noOfficeBreakdown.asapAccepts);
-
-        if (noOfficeBreakdown.other > 0) {
-            const percentage = ((noOfficeBreakdown.other / noOfficeCount) * 100).toFixed(1);
-            rows.push({
-                style: 'background-color: #f8f9fa;',
-                cells: [
-                    { content: 'Other Students', style: 'font-weight: bold;' },
-                    { content: noOfficeBreakdown.other, style: 'text-align: right; font-weight: bold;' },
-                    { content: `${percentage}%`, style: 'text-align: right; font-weight: bold;' }
-                ]
-            });
-
-            const creditsBreakdown = noOfficeBreakdown.otherCreditsBreakdown;
-            const addCreditsRow = (label, value) => {
-                if (value > 0) {
-                    const pct = ((value / noOfficeBreakdown.other) * 100).toFixed(1);
-                    rows.push({
-                        cells: [
-                            { content: `  ${label}`, style: 'padding-left: 40px; font-size: 11px; color: #6c757d;' },
-                            { content: value, style: 'text-align: right; font-size: 11px; color: #6c757d;' },
-                            { content: `${pct}% of Other`, style: 'text-align: right; font-size: 11px; color: #6c757d;' }
-                        ]
-                    });
-                }
-            };
-            addCreditsRow('Null/Missing Credits', creditsBreakdown.null);
-            addCreditsRow('0 Credits', creditsBreakdown.zero);
-            addCreditsRow('1 to 14 Credits', creditsBreakdown.oneToFourteen);
-            addCreditsRow('15+ Credits', creditsBreakdown.fifteenPlus);
-        }
-
-        html += utils.createTable(headers, rows, {
-            grandTotal: {
-                color: '#333',
-                cells: [
-                    { content: 'TOTAL — No Office' },
-                    { content: noOfficeCount, align: 'right' },
-                    { content: '100.0%', align: 'right' }
-                ]
-            }
-        });
-    }
-    
-    // === Median Caseload by Advising Office ===
-    html += '<div id="medianCaseloadContainer">';
-    html += generateMedianCaseloadTables(analytics.officeDetailedStats, analytics.advisorAssignmentsFlat, analytics.studentAdvisorOfficeMap);
-    html += '</div>';
-    
     // === New: Advisor Assignments (Unified Table) ===
     if (advisorAssignmentsFlat) {
         html += '<h4 style="color:#333; margin: 24px 0 10px;">🧑‍🏫 Advisor Assignments</h4>';
         html += '<div style="font-size:12px; color:#6c757d; margin-bottom:10px;">Counts reflect the number of unique students assigned to each advisor. Each advisor appears in only one office based on their role. <strong>Uncheck advisors to exclude them from the Median Caseload calculations.</strong></div>';
         
-        // Add select/deselect all buttons
-        html += '<div style="margin-bottom: 15px;">';
-        html += '<button onclick="selectAllAdvisors()" style="background-color: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 10px; font-size: 12px;">Select All</button>';
-        html += '<button onclick="deselectAllAdvisors()" style="background-color: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Deselect All</button>';
-        html += '</div>';
-        
         const headers = [
-            { title: '✓', align: 'center' },
             { title: 'Advisor', align: 'left' },
             { title: 'Advising Office', align: 'left' },
             { title: 'Exclusive Students', align: 'right' },
@@ -2980,13 +2981,8 @@ function generateAdvisingDashboard(analytics, totalRecords) {
             grandShared += item.shared;
             grandTotal += item.count;
             
-            // Create unique ID for checkbox
-            const checkboxId = `advisor_checkbox_${index}`;
-            const advisorKey = `${item.advisor}|${item.offices}`;
-            
             rows.push({
                 cells: [
-                    { content: `<input type="checkbox" id="${checkboxId}" checked onchange="toggleAdvisor('${advisorKey.replace(/'/g, "\\'")}')" style="transform: scale(1.2);">`, style: 'text-align: center; width: 30px;' },
                     { content: item.advisor },
                     { content: item.offices || '' },
                     { content: item.exclusive, style: 'text-align:right;' },
@@ -2999,7 +2995,6 @@ function generateAdvisingDashboard(analytics, totalRecords) {
             grandTotal: {
                 color: '#333',
                 cells: [
-                    { content: '', style: 'width: 30px;' },
                     { content: 'GRAND TOTAL', colspan: 2 },
                     { content: grandExclusive, align: 'right' },
                     { content: grandShared, align: 'right' },
@@ -3009,6 +3004,35 @@ function generateAdvisingDashboard(analytics, totalRecords) {
         });
     }
     // === End New Section ===
+
+    // v1.6: Students by Major (from the Category "Major:" entry, i.e. "Major with subplan")
+    {
+        const counts = {};
+        const majorCol = CONSTANTS.COLUMNS.Major;
+        (appState.processedData || []).forEach(r => {
+            const m = (r[majorCol] || '').toString().trim() || '(no major listed)';
+            counts[m] = (counts[m] || 0) + 1;
+        });
+        const entries = Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+        const total = entries.reduce((n, [, c]) => n + c, 0);
+        html += '<h4 style="color:#333; margin: 24px 0 10px;">🎓 Students by Major</h4>';
+        html += `<div style="font-size:12px; color:#6c757d; margin-bottom:10px;">${entries.length} majors (with subplan, as listed in Category). One row per student.</div>`;
+        const mh = [
+            { title: 'Major with subplan', align: 'left' },
+            { title: 'Students', align: 'right' },
+            { title: '% of all', align: 'right' }
+        ];
+        const mrows = entries.map(([m, c]) => ({ cells: [
+            { content: m },
+            { content: c.toLocaleString(), style: 'text-align:right;' },
+            { content: total ? ((c / total) * 100).toFixed(1) + '%' : '', style: 'text-align:right; color:#6c757d;' }
+        ] }));
+        html += utils.createTable(mh, mrows, { grandTotal: { color: '#333', cells: [
+            { content: 'TOTAL' },
+            { content: total.toLocaleString(), align: 'right' },
+            { content: '100.0%', align: 'right' }
+        ] } });
+    }
 
 return html;
 }
@@ -3555,6 +3579,64 @@ function generatePeerDashboard(analytics, totalRecords) {
             return html;
         }
 
+        // v1.5: Assigned Staff tab. Advisor relationships are shown locked (they already
+        // drive Advising Office / Professional Advisor). Every other relationship type
+        // found in the file gets a checkbox; ticked types export as their own column
+        // (header = exact Navigate text; Program Director variants combine into one).
+        function generateAssignedStaffDashboard(staffTypes, totalRecords) {
+            if (!staffTypes || !Object.keys(staffTypes).length) return '<p>No "(Relationship)" tags found in Assigned Staff.</p>';
+            const all = Object.values(staffTypes);
+            const advisors = all.filter(t => t.kind === 'advisor').sort((a, b) => b.students.size - a.students.size);
+            const optional = all.filter(t => t.kind === 'optional').sort((a, b) => b.students.size - a.students.size);
+            const esc = v => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const pct = n => totalRecords ? (n / totalRecords * 100).toFixed(1) + '%' : '';
+            const selectedCount = optional.filter(t => t.selected).length;
+
+            let html = '<h4 style="color: #28a745; margin-bottom: 15px;">👥 Assigned Staff</h4>';
+            html += '<div style="margin-bottom: 20px; padding: 15px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px;">';
+            html += `<strong>Relationship types found:</strong> ${all.length} (${advisors.length} advisor, ${optional.length} other) &nbsp;&middot;&nbsp; <strong>Selected for export:</strong> <span id="staffSelectedCount">${selectedCount}</span><br>`;
+            html += '<span style="color: #155724;">Tick the relationship types to include as columns in the CSV. Each ticked type becomes a column headed with the relationship name and holding the staff member\'s name (two or more joined with "; ").</span>';
+            html += '</div>';
+
+            html += '<div style="margin-bottom: 10px;"><button onclick="setAllStaffTypes(true)" style="padding:6px 14px;border:1px solid #007bff;background:#fff;color:#007bff;border-radius:4px;cursor:pointer;margin-right:8px;">Select all</button><button onclick="setAllStaffTypes(false)" style="padding:6px 14px;border:1px solid #6c757d;background:#fff;color:#6c757d;border-radius:4px;cursor:pointer;">Clear all</button></div>';
+
+            const table = (rows, locked) => {
+                let t = '<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:22px;"><thead><tr style="background:#f8f9fa;">';
+                t += '<th style="width:60px;padding:8px;border-bottom:2px solid #dee2e6;text-align:center;">Include</th><th style="padding:8px;border-bottom:2px solid #dee2e6;text-align:left;">Relationship type</th><th style="padding:8px;border-bottom:2px solid #dee2e6;text-align:right;">Students</th><th style="padding:8px;border-bottom:2px solid #dee2e6;text-align:right;">% of all</th><th style="padding:8px;border-bottom:2px solid #dee2e6;text-align:right;">Staff</th><th style="padding:8px;border-bottom:2px solid #dee2e6;text-align:left;">Exported as</th></tr></thead><tbody>';
+                rows.forEach(ty => {
+                    const n = ty.students.size, staffN = Object.keys(ty.staff).length;
+                    const cell = locked
+                        ? '<input type="checkbox" checked disabled title="Advisor relationships always feed Advising Office / Professional Advisor" style="transform:scale(1.2);">'
+                        : `<input type="checkbox" ${ty.selected ? 'checked' : ''} onchange="toggleStaffType('${esc(ty.key).replace(/'/g, "\\'")}', this.checked)" style="transform:scale(1.2);cursor:pointer;">`;
+                    const exportedAs = locked ? '<span style="color:#6c757d;">Advising Office / Professional Advisor</span>' : `<code style="background:#f1f3f5;padding:2px 6px;border-radius:4px;">${esc(ty.column)}</code>`;
+                    t += `<tr style="border-bottom:1px solid #eee;"><td style="padding:8px;text-align:center;">${cell}</td><td style="padding:8px;">${esc(ty.label)}${ty.key === 'program director' ? ' <span style="font-size:11px;color:#6c757d;">(all "Program Director - …" variants; value shows the program)</span>' : ''}</td><td style="padding:8px;text-align:right;">${n.toLocaleString()}</td><td style="padding:8px;text-align:right;color:#6c757d;">${pct(n)}</td><td style="padding:8px;text-align:right;">${staffN}</td><td style="padding:8px;">${exportedAs}</td></tr>`;
+                });
+                return t + '</tbody></table>';
+            };
+
+            if (advisors.length) {
+                html += '<h5 style="margin:10px 0 8px;color:#333;">Advisor relationships <span style="font-size:12px;color:#6c757d;font-weight:normal;">(built in, not editable)</span></h5>';
+                html += table(advisors, true);
+            }
+            html += '<h5 style="margin:10px 0 8px;color:#333;">Other relationships</h5>';
+            html += optional.length ? table(optional, false) : '<p style="color:#6c757d;">None found.</p>';
+            return html;
+        }
+
+        window.toggleStaffType = function(key, checked) {
+            if (appState.staffTypes && appState.staffTypes[key]) {
+                appState.staffTypes[key].selected = !!checked;
+                const el = document.getElementById('staffSelectedCount');
+                if (el) el.textContent = Object.values(appState.staffTypes).filter(t => t.kind === 'optional' && t.selected).length;
+            }
+        };
+        window.setAllStaffTypes = function(on) {
+            if (!appState.staffTypes) return;
+            Object.values(appState.staffTypes).forEach(t => { if (t.kind === 'optional') t.selected = !!on; });
+            const c = document.getElementById('staffContent');
+            if (c) c.innerHTML = generateAssignedStaffDashboard(appState.staffTypes, appState.processedData.length);
+        };
+
         function generateCategoryManagerDashboard(analytics) {
             if (!analytics) return '<p>No category data available.</p>';
             
@@ -3635,19 +3717,15 @@ function generatePeerDashboard(analytics, totalRecords) {
         // Groups are matched in array order; the first match wins, so more specific
         // prefixes must appear before more general ones (e.g. "Transfer Out:" before
         // "Transfer:"). Anything unmatched falls into the final "Other" bucket.
+        // v1.5: trimmed to the buckets other advising staff use; everything else is "Other".
         const CATEGORY_GROUPS = [
-            { key: 'sg',        label: 'Student Groups',                    icon: '👥', test: c => c.startsWith('SG:') },
-            { key: 'major',     label: 'Majors',                            icon: '🎓', test: c => c.startsWith('Major:') },
-            { key: 'enroll',    label: 'Enrollment & Sessions',             icon: '📝', test: c => c.startsWith('Enrolled in') || c.startsWith('Enrolled:') || c.startsWith('Only Enrolled') },
             { key: 'cohort',    label: 'New Student Cohorts',               icon: '🌱', test: c => c.startsWith('New Student:') },
             { key: 'transout',  label: 'Transfer Out',                      icon: '📤', test: c => c.startsWith('Transfer Out:') },
             { key: 'transin',   label: 'Transfer In',                       icon: '📥', test: c => c.startsWith('Transfer:') },
             { key: 'finaid',    label: 'Financial Aid',                     icon: '💵', test: c => c.startsWith('FA ') },
             { key: 'si',        label: 'Service Indicators',                icon: '🚩', test: c => c.startsWith('SI:') },
-            { key: 'progress',  label: 'Academic Progress & Milestones',    icon: '📈', test: c => c.startsWith('Academic Standing:') || c.startsWith('SAP:') || c.startsWith('Milestone:') || c.startsWith('Completed LaGuardia Credits:') || c === 'Passed FYS' || c === 'Honors Student' || c === 'not in CS' || c === 'Not in MAT' },
-            { key: 'gradwd',    label: 'Graduation & Withdrawal',           icon: '🏁', test: c => c.startsWith('Graduation Status:') || c.startsWith('Total Withdrawal') || c.startsWith('Program Status:') },
-            { key: 'advising',  label: 'Advising & Registration Readiness', icon: '🗓️', test: c => c.startsWith('NSAR:') || c.startsWith('NO NSAR:') || c.startsWith('Eligible to Register') || c.startsWith('Continuing:') },
-            { key: 'program',   label: 'Program Participation',             icon: '⭐', test: c => c.startsWith('CLIP:') || c.startsWith('MathStart:') },
+            { key: 'sg',        label: 'Student Groups',                    icon: '👥', test: c => c.startsWith('SG:') },
+            { key: 'enroll',    label: 'Enrollment & Sessions',             icon: '📝', test: c => c.startsWith('Enrolled in') || c.startsWith('Enrolled:') || c.startsWith('Only Enrolled') },
             { key: 'unsorted',  label: 'Other',                             icon: '📂', test: () => true }
         ];
 
@@ -4155,9 +4233,16 @@ function exportProcessedData() {
             }
         } catch (e) { /* ignore */ }
 
-        // Create records including Yes/No for each selected category
+        // v1.5: relationship columns ticked on the Assigned Staff tab
+        const selectedStaffTypes = Object.values(appState.staffTypes || {})
+            .filter(t => t.kind === 'optional' && t.selected)
+            .sort((a, b) => a.column.localeCompare(b.column));
+        const selectedStaffColumns = selectedStaffTypes.map(t => t.column);
+
+        // Create records including relationship columns and Yes/No for each selected category
         const dataWithCategories = rows.map(record => {
             const newRecord = Object.assign({}, record);
+            selectedStaffTypes.forEach(t => { newRecord[t.column] = utils.staffValueFor(record, t); });
             const recCats = String(record[CONSTANTS.COLUMNS.CATEGORY] || '')
                 .split(',').map(c => c.trim()).filter(Boolean);
             selectedCategoryColumns.forEach(category => {
@@ -4200,24 +4285,20 @@ function exportProcessedData() {
         pushIfPresent(desiredOrder, {const:'SECONDARY_STAFF_ID'});         // Secondary Staff ID
         pushIfPresent(desiredOrder, 'Degree');                             // Degree
         pushIfPresent(desiredOrder, {const:'NAV_M'});                      // Navigate Major
-        pushIfPresent(desiredOrder, {const:'Major'});                      // Major
+        pushIfPresent(desiredOrder, {const:'Major'});                      // Major with subplan
+        selectedStaffColumns.forEach(col => desiredOrder.push(col));       // v1.5: ticked relationship columns
         // Student Academic Department (support alternate key names)
         pushIfPresent(desiredOrder, ['Student Academic Department','Student Academic Department_main']);
         pushIfPresent(desiredOrder, [{const:'STUDENT_ACAD_DEPT_SUB'}, 'Student Academic Department_sub', 'Student Academic Department_sub_alt']);      // Student Academic Department_sub
-        // Faculty Mentor and related
-        pushIfPresent(desiredOrder, 'Faculty Mentor');                      // Faculty Mentor
+        // Faculty Mentor and related (lookup-file columns only; the role column itself is now selectable above)
         pushIfPresent(desiredOrder, 'Mentor ID');                           // Mentor ID
         pushIfPresent(desiredOrder, 'Faculty Academic Department');
         pushIfPresent(desiredOrder, 'Faculty Academic Department_sub');
         pushIfPresent(desiredOrder, 'Faculty Academic Department_home');
         pushIfPresent(desiredOrder, {const:'FACULTY_MISMATCH'});           // Faculty Mismatch (faculty file only)
         // Peer advisor and related
-        pushIfPresent(desiredOrder, 'Peer Advisor');
         pushIfPresent(desiredOrder, 'Peer ID');                             // Peer ID (peer file)
         pushIfPresent(desiredOrder, 'Peer Academic Department');                   // Peer Academic Department
-        // Program Director, Librarian
-        pushIfPresent(desiredOrder, 'Program Director');
-        pushIfPresent(desiredOrder, 'Librarian');
 
         
         // Safeguard: if 'Student Academic Department_sub' exists but wasn't included, insert it now (before categories)
