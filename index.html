@@ -1,12 +1,35 @@
 <!--
 ================================================================================
   App:          LaGuardia Navigate Caseload Generator Lite
-  Version:      2.1
+  Version:      3.0
   Released:     October 28, 2026
   Developed by: Josh Goldblatt using Claude
 ================================================================================
   CHANGELOG (most recent first)
 --------------------------------------------------------------------------------
+  v3.0  2026-10-28
+    - DESIGN MIGRATION onto the LaGuardia standard design system (the same look
+      as the Advising Metrics App 8.13 and the CUNY apps). Visual layer only:
+      no processing logic, mappings, element IDs, column names, or export
+      content changed.
+      * Tokens: warm paper background, white cards, earthy-red --accent,
+        teal / gold secondaries, green for success status; Fraunces for
+        headings and stat numbers, Source Sans 3 for body text (Google Fonts
+        with system fallbacks).
+      * Header: app name as the h1 with an accented span, purpose subtitle,
+        and the standard Version / Released / Developed-by meta-box. The
+        emoji in the title and in section headings were removed; the
+        status marks (checkmark, cross, warning sign) are kept.
+      * Tabs are pill tabs; showTab() now toggles the .active class instead
+        of writing inline styles.
+      * utils.createTable() emits the standard .table-wrap / .tbl table; the
+        grand-total row is a .total row. cell.style is still honored for
+        alignment and emphasis.
+      * Upload panels, status messages, progress bar, changelog panel, and
+        the results shell restyled with the kit. Every legacy inline hex
+        color was mapped to a token (blue -> accent, navy -> ink, bootstrap
+        success/warning/danger/info tints -> green/gold/accent/teal families,
+        purple -> gold family); gradients flattened to their end color.
   v2.1  2026-10-28
     - New advising office "CIE Integrated Advising" with four primary advisor
       roles, all mapped to it in ROLE_TO_OFFICE and ROLES.ADVISOR:
@@ -133,257 +156,267 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Navigate Caseload Generator Lite v2.1</title>
+    <title>Navigate Caseload Generator Lite v3.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js">
 </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
+/* ============================================================================
+   DESIGN TOKENS — LaGuardia standard design (see standard-design SKILL.md)
+   ========================================================================== */
+:root{
+  --ink:#22253a;--ink-soft:#565b76;--ink-faint:#8b8fa6;
+  --paper:#f7f4ee;--card:#ffffff;--line:#e4dfd4;
+  --accent:#b5482e;--accent-dark:#9c3c25;--accent-soft:#f3ddd6;
+  --teal:#2e6e72;--teal-soft:#d9e8e8;
+  --gold:#c8922c;--gold-deep:#8a6516;--gold-soft:#f4ecd9;
+  --green:#3f7d57;--green-soft:#dcecdf;
+  --radius:12px;--shadow:0 1px 2px rgba(34,37,58,.06),0 6px 18px -8px rgba(34,37,58,.12);
+  --font-display:'Fraunces',Georgia,serif;--font-body:'Source Sans 3','Segoe UI',sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:var(--font-body);background:var(--paper);color:var(--ink);font-size:15.5px;line-height:1.55;
+  background-image:radial-gradient(circle at 12% -10%,rgba(181,72,46,.05),transparent 40%),radial-gradient(circle at 95% 0%,rgba(46,110,114,.05),transparent 35%)}
+.container{max-width:1180px;margin:0 auto;padding:0 28px 80px}
 
-        .container {
-            background-color: white;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        h1 { color: #333; margin-bottom: 30px; }
-        .upload-section {
-            margin-bottom: 30px;
-            padding: 20px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            border: 2px dashed #dee2e6;
-            transition: all 0.3s ease;
-        }
-        .upload-section:hover {
-            border-color: #007bff;
-            box-shadow: 0 2px 8px rgba(0,123,255,0.1);
-        }
-        .file-input-wrapper { 
-            margin-bottom: 15px; 
-            padding: 10px;
-            background-color: white;
-            border-radius: 6px;
-            transition: all 0.3s ease;
-        }
-        .file-input-wrapper:hover {
-            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: #555;
-        }
-        input[type="file"] {
-            display: block;
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background-color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        input[type="file"]:hover {
-            border-color: #007bff;
-            background-color: #f8f9ff;
-        }
-        .upload-icon {
-            font-size: 32px;
-            margin-right: 10px;
-            vertical-align: middle;
-        }
-        .section-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        .help-text {
-            font-size: 12px;
-            color: #6c757d;
-            margin: 5px 0;
-            padding: 8px;
-            background-color: #f1f3f5;
-            border-radius: 4px;
-        }
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            margin-right: 10px;
-            transition: background-color 0.3s;
-        }
-        button:hover:not(:disabled) { 
-            background-color: #0056b3 !important; 
-            transform: translateY(-1px);
-            box-shadow: 0 6px 12px rgba(0,123,255,0.4) !important;
-        }
-        button:disabled {
-            background-color: #6c757d !important;
-            cursor: not-allowed !important;
-            transform: none !important;
-            box-shadow: 0 4px 8px rgba(108,117,125,0.3) !important;
-        }
-        .status {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 4px;
-            display: none;
-        }
-        .status.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .status.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        .status.info {
-            background-color: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-        .progress-container {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            display: none;
-        }
-        .progress-bar {
-            width: 100%;
-            height: 20px;
-            background-color: #e9ecef;
-            border-radius: 10px;
-            overflow: hidden;
-            margin-bottom: 10px;
-        }
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #007bff, #0056b3);
-            border-radius: 10px;
-            transition: width 0.3s ease;
-            width: 0%;
-        }
-        .progress-text {
-            text-align: center;
-            font-weight: 600;
-            color: #495057;
-            margin-bottom: 5px;
-        }
-        .progress-details {
-            font-size: 12px;
-            color: #6c757d;
-            text-align: center;
-        }
-        .file-item {
-            padding: 5px 0;
-            font-size: 14px;
-            color: #666;
-            transition: all 0.3s ease;
-        }
-        .file-item.loaded { 
-            color: #28a745; 
-            font-weight: 500;
-        }
+/* ---------- Headings ---------- */
+h1{font-family:var(--font-display);font-weight:700;font-size:clamp(28px,4vw,42px);line-height:1.05;letter-spacing:-.5px;margin:0}
+h1 .accent{color:var(--accent)}
+h2{font-family:var(--font-display);font-weight:600;font-size:22px;line-height:1.1;letter-spacing:-.2px;margin:0 0 6px}
+h3{font-family:var(--font-display);font-weight:600;font-size:18px;line-height:1.15;margin:0 0 8px}
+h4{font-family:var(--font-display);font-weight:600;font-size:19px;line-height:1.2;margin:18px 0 10px}
+h5{font-family:var(--font-body);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);margin:18px 0 8px}
+.muted{color:var(--ink-faint)}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-size:12.5px;background:var(--paper);border:1px solid var(--line);padding:1px 6px;border-radius:5px;color:var(--ink)}
+
+/* ---------- Header ---------- */
+header{padding:38px 0 0}
+.brand-row{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:18px;border-bottom:3px solid var(--ink);padding-bottom:22px}
+.subtitle{color:var(--ink-soft);margin-top:9px;max-width:640px;font-size:16px;line-height:1.5}
+.meta-box{font-size:12.5px;color:var(--ink-soft);line-height:1.7;display:grid;grid-template-columns:auto auto;gap:0 10px;align-content:end}
+.meta-box b{color:var(--ink);font-weight:600;text-align:right}
+.meta-box span{white-space:nowrap}
+
+/* ---------- Changelog (collapsible) ---------- */
+.clog{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--card);margin:18px 0 0}
+.clog-head{display:flex;justify-content:space-between;align-items:center;width:100%;padding:11px 18px;background:var(--paper);border:none;border-radius:0;cursor:pointer;font-family:var(--font-body);font-weight:600;font-size:13.5px;color:var(--ink-soft);text-align:left;box-shadow:none;margin:0}
+.clog-head:hover{background:var(--line)!important;color:var(--ink);transform:none;box-shadow:none!important}
+.clog-body{display:none;padding:4px 18px 14px;max-height:420px;overflow-y:auto;font-size:13px;color:var(--ink-soft)}
+.clog-body ul{padding-left:18px;line-height:1.6}
+.clog-body .v{font-weight:700;color:var(--accent);margin-top:12px}
+
+/* ---------- Section label ---------- */
+.sec-label{font-family:var(--font-display);font-size:15px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.12em;margin:38px 0 14px}
+
+/* ---------- Buttons: every button is a pill; default = primary ---------- */
+button,.btn{font-family:var(--font-body);font-size:13px;font-weight:600;line-height:1.2;cursor:pointer;transition:.15s;
+  display:inline-flex;align-items:center;gap:7px;padding:9px 20px;border-radius:999px;border:1.5px solid var(--accent);
+  background:var(--accent);color:#fff;margin-right:8px}
+button:hover:not(:disabled){background:var(--accent-dark);border-color:var(--accent-dark)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-secondary,button.secondary{background:none;color:var(--accent);border-color:var(--accent)}
+.btn-secondary:hover:not(:disabled),button.secondary:hover:not(:disabled){background:var(--accent);color:#fff}
+.btn-neutral,button.neutral{background:none;color:var(--ink-soft);border-color:var(--line)}
+.btn-neutral:hover:not(:disabled),button.neutral:hover:not(:disabled){background:none;border-color:var(--ink-faint);color:var(--ink)}
+.btn-lg{font-size:15px;padding:12px 28px}
+
+/* ---------- Upload panels & form controls ---------- */
+.upload-section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px 24px;margin-bottom:22px}
+.upload-section.required{border-left:4px solid var(--accent)}
+.upload-section.optional{border-left:4px solid var(--teal)}
+.section-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.section-header h2{margin:0}
+.file-input-wrapper{margin-bottom:14px;padding:12px 14px;background:var(--paper);border:1px solid var(--line);border-radius:10px}
+.file-input-wrapper:last-child{margin-bottom:0}
+label{display:block;margin-bottom:5px;font-weight:600;color:var(--ink)}
+input[type="file"]{display:block;width:100%;padding:9px 11px;border:1.5px solid var(--line);border-radius:8px;background:#fff;font-family:var(--font-body);font-size:13.5px;color:var(--ink-soft);cursor:pointer}
+input[type="file"]:hover{border-color:var(--ink-faint)}
+input[type="text"],input[type="number"],select{font-family:var(--font-body);font-size:14px;padding:8px 11px;border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;border-color:var(--accent)}
+input[type="checkbox"]{accent-color:var(--accent)}
+.help-text{font-size:12.5px;color:var(--ink-soft);margin:6px 0;padding:8px 10px;background:#fff;border:1px solid var(--line);border-radius:8px;line-height:1.55}
+.file-item{padding:6px 0 0;font-size:13.5px;color:var(--ink-soft)}
+.file-item.loaded{color:var(--green);font-weight:600}
+.upload-icon{display:none}
+
+/* ---------- Semester picker ---------- */
+.sem-panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 22px;margin-bottom:22px}
+.sem-panel h3{margin:0 0 12px}
+.seg-btn{background:#fff;color:var(--ink-soft);border:1.5px solid var(--line)}
+.seg-btn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.seg-btn:hover:not(:disabled){background:var(--paper);border-color:var(--ink-faint);color:var(--ink)}
+.seg-btn.on:hover{background:var(--ink)!important;border-color:var(--ink)!important;color:#fff}
+.sem-badge{display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:var(--ink-faint);color:#fff;font-weight:700;font-size:14px}
+.sem-badge.set{background:var(--ink)}
+.sem-badge.err{background:var(--accent)}
+
+/* ---------- Status, progress ---------- */
+.status{margin-top:18px;padding:12px 16px;border-radius:10px;display:none;font-size:14px;font-weight:600;border:1px solid var(--line)}
+.status.success{background:var(--green-soft);color:var(--green);border-color:var(--green)}
+.status.error{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.status.warning{background:var(--gold-soft);color:var(--gold-deep);border-color:var(--gold)}
+.status.info{background:var(--teal-soft);color:var(--teal);border-color:var(--teal)}
+.progress-container{margin-top:18px;padding:16px 18px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);display:none}
+.progress-bar{width:100%;height:12px;background:var(--paper);border-radius:999px;overflow:hidden;margin-bottom:10px}
+.progress-fill{height:100%;background:var(--teal);border-radius:999px;transition:width .3s ease;width:0}
+.progress-text{text-align:center;font-weight:600;color:var(--ink);margin-bottom:4px}
+.progress-details{font-size:12.5px;color:var(--ink-faint);text-align:center}
+
+/* ---------- Results shell, tabs ---------- */
+.results-panel{margin-top:26px}
+.tabs{display:flex;gap:6px;margin:0 0 26px;flex-wrap:wrap}
+.tab-button{font-family:var(--font-body);font-weight:600;font-size:15px;border:1.5px solid var(--line);background:var(--card);color:var(--ink-soft);padding:10px 22px;border-radius:999px;cursor:pointer;transition:.18s;margin:0}
+.tab-button:hover:not(:disabled){border-color:var(--ink-faint);color:var(--ink);background:var(--card)}
+.tab-button.active,.tab-button.active:hover{background:var(--ink)!important;border-color:var(--ink)!important;color:#fff!important}
+.tab-content{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 26px}
+
+/* ---------- Tables (utils.createTable) ---------- */
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);background:var(--card);margin-bottom:20px}
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.tbl thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700;padding:10px 14px;border-bottom:2px solid var(--line);background:var(--paper);white-space:nowrap}
+.tbl tbody td{padding:9px 14px;border-bottom:1px solid var(--line);color:var(--ink-soft);vertical-align:top}
+.tbl tbody tr:last-child td{border-bottom:none}
+.tbl tbody tr:hover td{background:var(--paper)}
+.tbl tbody tr.total td{background:var(--ink);color:#fff;font-weight:700}
+.tbl tbody tr.total:hover td{background:var(--ink)}
+/* generic inline tables built elsewhere in the app */
+table{font-size:13.5px}
+th{font-weight:700;color:var(--ink-soft)}
+
+/* ---------- Stat cards, panels, collapsibles ---------- */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:22px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.stat::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent)}
+.stat.teal::before{background:var(--teal)}.stat.gold::before{background:var(--gold)}.stat.ink::before{background:var(--ink)}.stat.green::before{background:var(--green)}
+.stat .num{font-family:var(--font-display);font-size:32px;font-weight:700;line-height:1;color:var(--ink)}
+.stat .lbl{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin-top:6px;font-weight:600}
+.stat .sub{font-size:12px;color:var(--ink-faint);margin-top:6px;line-height:1.5}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 22px;margin-bottom:22px}
+.panel.soft{background:var(--paper);box-shadow:none}
+.note{font-size:13px;color:var(--ink-faint)}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;letter-spacing:.03em;padding:3px 10px;border-radius:6px;text-transform:uppercase}
+.badge.ok{background:var(--green-soft);color:var(--green)}.badge.info{background:var(--teal-soft);color:var(--teal)}.badge.warn{background:var(--gold-soft);color:var(--gold-deep)}.badge.danger{background:var(--accent-soft);color:var(--accent)}.badge.muted{background:var(--paper);color:var(--ink-soft);border:1px solid var(--line)}
+.dept-section{margin-bottom:14px}
+.dept-head{display:flex;align-items:center;gap:14px;background:var(--ink);color:#fff;border-radius:var(--radius);padding:12px 20px;cursor:pointer;user-select:none;transition:.15s}
+.dept-head:hover{background:#33375a}
+.dept-head h3{font-size:17px;flex:1;color:#fff;margin:0;font-family:var(--font-body);font-weight:600}
+.dept-head .counts{font-size:12.5px;opacity:.85;white-space:nowrap}
+.dept-head .chev{transition:transform .2s;font-size:13px}
+.dept-section.open .chev{transform:rotate(90deg)}
+.dept-body{display:none;padding:12px 4px 4px}
+.dept-section.open .dept-body{display:block}
+.empty-state{text-align:center;padding:40px 20px;color:var(--ink-faint)}
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📚 Navigate Caseload Generator Lite</h1>
-        <p style="margin-top: -20px; margin-bottom: 5px; color: #666; font-style: italic;">Developed by Josh Goldblatt using Claude</p>
-        <div class="subtitle" style="margin-bottom: 16px;">Version 2.1 - Released October 28, 2026</div>
+        <header>
+            <div class="brand-row">
+                <div>
+                    <h1>Navigate <span class="accent">Caseload Generator</span> Lite</h1>
+                    <p class="subtitle">Upload any Navigate export, pick the relationship types and categories you want as columns, and download an analysis-ready file.</p>
+                </div>
+                <div class="meta-box">
+                    <b>Version:</b><span>3.0</span>
+                    <b>Released:</b><span>October 28, 2026</span>
+                    <b>Developed by:</b><span>Josh Goldblatt using Claude</span>
+                </div>
+            </div>
+        </header>
 
         <!-- Changelog Section -->
-        <div style="margin-bottom: 24px; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;">
-            <button onclick="toggleChangelog()" id="changelogToggle" style="display:flex; align-items:center; justify-content:space-between; width:100%; padding:12px 18px; background:linear-gradient(135deg,#f8f9fa 0%,#e9ecef 100%); border:none; cursor:pointer; font-size:14px; font-weight:600; color:#495057; text-align:left; transition:background 0.2s ease;">
-                <span>📋 Version History &amp; Changelog</span>
-                <span id="changelogArrow" style="font-size:12px; color:#6c757d; transition:transform 0.25s ease;">▼</span>
+        <div class="clog">
+            <button onclick="toggleChangelog()" id="changelogToggle" class="clog-head">
+                <span>Version history &amp; changelog</span>
+                <span id="changelogArrow" style="font-size:12px; transition:transform 0.25s ease;">▼</span>
             </button>
-            <div id="changelogBody" style="display:none; padding:0 18px 16px; background:#fff; max-height:420px; overflow-y:auto;">
+            <div id="changelogBody" class="clog-body">
 
-                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid #f0f0f0;">
+                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid var(--line);">
                     <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px;">
-                        <span style="font-weight:700; font-size:14px; color:#007bff;">v2.1</span>
-                        <span style="font-size:12px; color:#6c757d;">October 28, 2026</span>
+                        <span style="font-weight:700; font-size:14px; color:var(--accent);">v3.0</span>
+                        <span style="font-size:12px; color:var(--ink-faint);">October 28, 2026</span>
                     </div>
                     <ul style="margin:4px 0 0 0; padding-left:20px;">
-                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>CIE Integrated Advising:</strong> new advising office. Recognizes <code>Academic Advisor - CIE - Engineering</code>, <code>- CIE - Business &amp; Healthcare Management</code>, <code>- CIE - Green Jobs</code>, and <code>- CIE - Psychology</code>. Legacy "Careers in Engineering" tags still map to the Careers in Engineering office.</li>
+                        <li style="font-size:13px; color:var(--ink-soft); line-height:1.6;"><strong>Standard design:</strong> the app now uses the LaGuardia standard design system (Fraunces / Source Sans 3, warm paper palette, pill tabs, standard tables and cards). Visual only; processing, mappings, and export columns are unchanged from 2.1.</li>
                     </ul>
                 </div>
-                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid #f0f0f0;">
+
+                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid var(--line);">
                     <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px;">
-                        <span style="font-weight:700; font-size:14px; color:#007bff;">v2.0</span>
-                        <span style="font-size:12px; color:#6c757d;">October 6, 2026</span>
+                        <span style="font-weight:700; font-size:14px; color:var(--accent);">v2.1</span>
+                        <span style="font-size:12px; color:var(--ink-soft);">October 28, 2026</span>
                     </div>
                     <ul style="margin:4px 0 0 0; padding-left:20px;">
-                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Semester picker removed:</strong> upload a file and click Process Files. No Semester column in the export.</li>
-                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Health Sciences pairing removed:</strong> Advising Office comes only from Assigned Staff advisor roles. The "Enrolled in any Clinical Course" categories remain in the Category Manager.</li>
+                        <li style="font-size:13px; color:var(--ink-soft); line-height:1.6;"><strong>CIE Integrated Advising:</strong> new advising office. Recognizes <code>Academic Advisor - CIE - Engineering</code>, <code>- CIE - Business &amp; Healthcare Management</code>, <code>- CIE - Green Jobs</code>, and <code>- CIE - Psychology</code>. Legacy "Careers in Engineering" tags still map to the Careers in Engineering office.</li>
                     </ul>
                 </div>
-                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid #f0f0f0;">
+                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid var(--line);">
                     <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px;">
-                        <span style="font-weight:700; font-size:14px; color:#007bff;">v1.6</span>
-                        <span style="font-size:12px; color:#6c757d;">October 6, 2026</span>
+                        <span style="font-weight:700; font-size:14px; color:var(--accent);">v2.0</span>
+                        <span style="font-size:12px; color:var(--ink-soft);">October 6, 2026</span>
                     </div>
                     <ul style="margin:4px 0 0 0; padding-left:20px;">
-                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Overview tab</strong> (renamed from Advising Office): summary cards, Students with Office Assignments, Advisor Assignments (no checkboxes), and a new Students by Major table. The No Office breakdown and Median Caseload sections were removed.</li>
+                        <li style="font-size:13px; color:var(--ink-soft); line-height:1.6;"><strong>Semester picker removed:</strong> upload a file and click Process Files. No Semester column in the export.</li>
+                        <li style="font-size:13px; color:var(--ink-soft); line-height:1.6;"><strong>Health Sciences pairing removed:</strong> Advising Office comes only from Assigned Staff advisor roles. The "Enrolled in any Clinical Course" categories remain in the Category Manager.</li>
                     </ul>
                 </div>
-                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid #f0f0f0;">
+                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid var(--line);">
                     <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px;">
-                        <span style="font-weight:700; font-size:14px; color:#007bff;">v1.5</span>
-                        <span style="font-size:12px; color:#6c757d;">October 6, 2026</span>
+                        <span style="font-weight:700; font-size:14px; color:var(--accent);">v1.6</span>
+                        <span style="font-size:12px; color:var(--ink-soft);">October 6, 2026</span>
                     </div>
                     <ul style="margin:4px 0 0 0; padding-left:20px;">
-                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Any Navigate export:</strong> header row detected automatically (line 1 or after the preamble); accepts Category/Categories and Student ID/EMPLID spellings.</li>
-                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>No confirmation dialog:</strong> processing starts on click; Health Sciences logic unchanged.</li>
-                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Assigned Staff tab:</strong> tick which relationship types (Faculty Mentor, Peer Advisor, Librarian, Program Director, and any others in the file) to export as columns. Advisor relationships are built in and locked. Nothing ticked by default.</li>
-                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Category Manager:</strong> buckets reduced to New Student Cohorts, Transfer Out, Transfer In, Financial Aid, Service Indicators, Student Groups, Enrollment &amp; Sessions, and Other.</li>
-                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Export:</strong> "Major" column renamed "Major with subplan".</li>
+                        <li style="font-size:13px; color:var(--ink-soft); line-height:1.6;"><strong>Overview tab</strong> (renamed from Advising Office): summary cards, Students with Office Assignments, Advisor Assignments (no checkboxes), and a new Students by Major table. The No Office breakdown and Median Caseload sections were removed.</li>
                     </ul>
                 </div>
-                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid #f0f0f0;">
+                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid var(--line);">
                     <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px;">
-                        <span style="font-weight:700; font-size:14px; color:#007bff;">v1.2</span>
-                        <span style="font-size:12px; color:#6c757d;">October 5, 2026</span>
+                        <span style="font-weight:700; font-size:14px; color:var(--accent);">v1.5</span>
+                        <span style="font-size:12px; color:var(--ink-soft);">October 6, 2026</span>
                     </div>
                     <ul style="margin:4px 0 0 0; padding-left:20px;">
-                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Removed:</strong> the Academic Departments tab and the "Student Academic Department" / "Student Academic Department_sub" export columns. Tabs are now Advising Office and Category Manager.</li>
+                        <li style="font-size:13px; color:var(--ink-soft); line-height:1.6;"><strong>Any Navigate export:</strong> header row detected automatically (line 1 or after the preamble); accepts Category/Categories and Student ID/EMPLID spellings.</li>
+                        <li style="font-size:13px; color:var(--ink-soft); line-height:1.6;"><strong>No confirmation dialog:</strong> processing starts on click; Health Sciences logic unchanged.</li>
+                        <li style="font-size:13px; color:var(--ink-soft); line-height:1.6;"><strong>Assigned Staff tab:</strong> tick which relationship types (Faculty Mentor, Peer Advisor, Librarian, Program Director, and any others in the file) to export as columns. Advisor relationships are built in and locked. Nothing ticked by default.</li>
+                        <li style="font-size:13px; color:var(--ink-soft); line-height:1.6;"><strong>Category Manager:</strong> buckets reduced to New Student Cohorts, Transfer Out, Transfer In, Financial Aid, Service Indicators, Student Groups, Enrollment &amp; Sessions, and Other.</li>
+                        <li style="font-size:13px; color:var(--ink-soft); line-height:1.6;"><strong>Export:</strong> "Major" column renamed "Major with subplan".</li>
                     </ul>
                 </div>
-                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid #f0f0f0;">
+                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid var(--line);">
                     <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px;">
-                        <span style="font-weight:700; font-size:14px; color:#007bff;">v1.1</span>
-                        <span style="font-size:12px; color:#6c757d;">October 2, 2026</span>
+                        <span style="font-weight:700; font-size:14px; color:var(--accent);">v1.2</span>
+                        <span style="font-size:12px; color:var(--ink-soft);">October 5, 2026</span>
                     </div>
                     <ul style="margin:4px 0 0 0; padding-left:20px;">
-                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Dashboard fix:</strong> The per-office rows under "Multiple Advisors (same office)" were showing Health Sciences-only students. They now show the actual multi-advisor offices. Headline counts were unaffected.</li>
+                        <li style="font-size:13px; color:var(--ink-soft); line-height:1.6;"><strong>Removed:</strong> the Academic Departments tab and the "Student Academic Department" / "Student Academic Department_sub" export columns. Tabs are now Advising Office and Category Manager.</li>
+                    </ul>
+                </div>
+                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid var(--line);">
+                    <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px;">
+                        <span style="font-weight:700; font-size:14px; color:var(--accent);">v1.1</span>
+                        <span style="font-size:12px; color:var(--ink-soft);">October 2, 2026</span>
+                    </div>
+                    <ul style="margin:4px 0 0 0; padding-left:20px;">
+                        <li style="font-size:13px; color:var(--ink-soft); line-height:1.6;"><strong>Dashboard fix:</strong> The per-office rows under "Multiple Advisors (same office)" were showing Health Sciences-only students. They now show the actual multi-advisor offices. Headline counts were unaffected.</li>
                     </ul>
                 </div>
 
                 <div style="margin-top:16px; padding-bottom:4px;">
                     <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px;">
-                        <span style="font-weight:700; font-size:14px; color:#007bff;">v1.0</span>
-                        <span style="font-size:12px; color:#6c757d;">October 2, 2026</span>
+                        <span style="font-weight:700; font-size:14px; color:var(--accent);">v1.0</span>
+                        <span style="font-size:12px; color:var(--ink-soft);">October 2, 2026</span>
                     </div>
                     <ul style="margin:4px 0 0 0; padding-left:20px;">
-                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Initial release.</strong> A streamlined version of the Navigate Caseload Generator (forked from v3.9.20). Upload the Navigate enrollment export, pick the semester, choose categories, and export.</li>
-                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Required file only:</strong> No optional lookup files, so the export omits Staff ID, Mentor ID, Peer ID, Faculty department columns, and Admit Type.</li>
-                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>Category search:</strong> Type to filter categories; use Select matching / Clear matching for the visible rows. Nothing is selected by default.</li>
+                        <li style="font-size:13px; color:var(--ink-soft); line-height:1.6;"><strong>Initial release.</strong> A streamlined version of the Navigate Caseload Generator (forked from v3.9.20). Upload the Navigate enrollment export, pick the semester, choose categories, and export.</li>
+                        <li style="font-size:13px; color:var(--ink-soft); line-height:1.6;"><strong>Required file only:</strong> No optional lookup files, so the export omits Staff ID, Mentor ID, Peer ID, Faculty department columns, and Admit Type.</li>
+                        <li style="font-size:13px; color:var(--ink-soft); line-height:1.6;"><strong>Category search:</strong> Type to filter categories; use Select matching / Clear matching for the visible rows. Nothing is selected by default.</li>
                     </ul>
                 </div>
 
@@ -392,26 +425,26 @@
         <!-- End Changelog -->
 
         <!-- Required File Section -->
-        <div class="upload-section" style="border: 2px solid #007bff; background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%);">
+        <div class="upload-section required">
             <div class="section-header">
-                <span class="upload-icon">📋</span>
-                <h2 style="color: #007bff; margin: 0;">Required File</h2>
+                <span class="upload-icon"></span>
+                <h2>Required File</h2>
             </div>
             <div class="file-input-wrapper">
-                <label for="mainFile">Main CSV File (Any Navigate Export): <span style="color: #dc3545; font-weight: bold;">*REQUIRED</span></label>
+                <label for="mainFile">Main CSV File (Any Navigate Export): <span class="badge danger" style="margin-left:6px;vertical-align:middle">Required</span></label>
                 <div class="help-text">
                     <strong>Must contain:</strong> Student ID, Assigned Staff, Category columns<br>
                     <strong>Format:</strong> CSV file exported from your enrollment system
                 </div>
                 <input type="file" id="mainFile" accept=".csv">
-                <div class="file-item" id="mainFileStatus" style="margin-top: 10px; padding: 5px 10px; border-radius: 4px; font-size: 14px;"></div>
+                <div class="file-item" id="mainFileStatus"></div>
             </div>
         </div>
         
         <!-- v2.0: semester picker removed -->
 
         <div style="text-align: center; margin: 30px 0;">
-            <button id="processBtn" disabled style="background-color: #6c757d; color: white; border: none; padding: 16px 32px; border-radius: 8px; cursor: not-allowed; font-size: 18px; font-weight: bold; box-shadow: 0 4px 8px rgba(108,117,125,0.3); transition: all 0.3s ease;">🚀 Process Files</button>
+            <button id="processBtn" class="btn-lg" disabled>Process Files</button>
         </div>
         
         <div class="status" id="status"></div>
@@ -701,8 +734,8 @@ function toAdvisingOfficeFromRole(roleLabel) {
         function generateMedianCaseloadTables(officeDetailedStats, advisorAssignmentsFlat, studentAdvisorOfficeMap) {
             if (!officeDetailedStats) return '';
             
-            let html = '<h4 style="color:#333; margin: 24px 0 10px;">📊 Median Caseload by Advising Office</h4>';
-            html += '<div style="font-size:12px; color:#6c757d; margin-bottom:10px;">This table shows the median number of students per advisor in each advising office. <strong>Use the checkboxes in the Advisor Assignments table to include/exclude advisors from these calculations.</strong></div>';
+            let html = '<h4 style="color:var(--ink); margin: 24px 0 10px;">Median Caseload by Advising Office</h4>';
+            html += '<div style="font-size:12px; color:var(--ink-soft); margin-bottom:10px;">This table shows the median number of students per advisor in each advising office. <strong>Use the checkboxes in the Advisor Assignments table to include/exclude advisors from these calculations.</strong></div>';
             
             const officeStats = {};
             const otherOffices = new Set([]);
@@ -849,7 +882,7 @@ function toAdvisingOfficeFromRole(roleLabel) {
                 
                 html += utils.createTable(medianHeaders, medianRows, {
                     grandTotal: {
-                        color: '#333',
+                        color: 'var(--ink)',
                         cells: [
                             { content: 'GRAND TOTAL' },
                             { content: totalAdvisors, align: 'right' },
@@ -864,8 +897,8 @@ function toAdvisingOfficeFromRole(roleLabel) {
             
             // Other offices table
             if (otherOfficesList.length > 0) {
-                html += '<h4 style="color:#333; margin: 24px 0 10px;">📊 Median Caseload by Advising Office (other)</h4>';
-                html += '<div style="font-size:12px; color:#6c757d; margin-bottom:10px;">Specialized programs.</div>';
+                html += '<h4 style="color:var(--ink); margin: 24px 0 10px;">Median Caseload by Advising Office (other)</h4>';
+                html += '<div style="font-size:12px; color:var(--ink-soft); margin-bottom:10px;">Specialized programs.</div>';
                 
                 const otherHeaders = [
                     { title: 'Advising Office', align: 'left' },
@@ -910,7 +943,7 @@ function toAdvisingOfficeFromRole(roleLabel) {
                 
                 html += utils.createTable(otherHeaders, otherRows, {
                     grandTotal: {
-                        color: '#333',
+                        color: 'var(--ink)',
                         cells: [
                             { content: 'GRAND TOTAL' },
                             { content: otherTotalAdvisors, align: 'right' },
@@ -924,7 +957,7 @@ function toAdvisingOfficeFromRole(roleLabel) {
             }
             
             if (Object.keys(officeStats).length === 0) {
-                html += '<div style="padding:15px; background:#f8f9fa; border:1px solid #dee2e6; border-radius:5px; color:#6c757d;">No office assignments found for median calculation.</div>';
+                html += '<div style="padding:15px; background:var(--paper); border:1px solid var(--line); border-radius:5px; color:var(--ink-soft);">No office assignments found for median calculation.</div>';
             }
             
             return html;
@@ -1185,39 +1218,31 @@ function toAdvisingOfficeFromRole(roleLabel) {
 
             createTable(headers, rows, options = {}) {
                 const { grandTotal, className = '' } = options;
-                let html = `<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;" class="${className}">`;
-                
-                // Headers
-                html += '<thead><tr style="background-color: #f8f9fa;">';
+                // Standard-design table (tokens + .tbl classes); cell.style still applies for alignment/emphasis.
+                let html = `<div class="table-wrap"><table class="tbl ${className}">`;
+                html += '<thead><tr>';
                 headers.forEach(header => {
-                    html += `<th style="border: 1px solid #dee2e6; padding: 10px; text-align: ${header.align || 'left'};">${header.title}</th>`;
+                    html += `<th style="text-align: ${header.align || 'left'};">${header.title}</th>`;
                 });
                 html += '</tr></thead><tbody>';
-                
-                // Rows
-                rows.forEach((row, index) => {
-                    const rowStyle = row.style || (index % 2 === 0 ? 'background-color: #f8f9fa;' : '');
-                    html += `<tr style="${rowStyle}">`;
+                rows.forEach(row => {
+                    html += `<tr${row.style ? ` style="${row.style}"` : ''}>`;
                     row.cells.forEach(cell => {
-                        const cellStyle = `border: 1px solid #dee2e6; padding: 8px; ${cell.style || ''}`;
                         const attrs = cell.rowspan ? `rowspan="${cell.rowspan}"` : '';
                         const colspanAttr = cell.colspan ? `colspan="${cell.colspan}"` : '';
-                        html += `<td style="${cellStyle}" ${attrs} ${colspanAttr}>${cell.content}</td>`;
+                        html += `<td${cell.style ? ` style="${cell.style}"` : ''} ${attrs} ${colspanAttr}>${cell.content}</td>`;
                     });
                     html += '</tr>';
                 });
-
-                // Grand total row
                 if (grandTotal) {
-                    html += `<tr style="background-color: ${grandTotal.color}; color: white; font-weight: bold;">`;
+                    html += '<tr class="total">';
                     grandTotal.cells.forEach(cell => {
                         const attrs = cell.colspan ? `colspan="${cell.colspan}"` : '';
-                        html += `<td style="border: 1px solid #dee2e6; padding: 8px; text-align: ${cell.align || 'left'};" ${attrs}>${cell.content}</td>`;
+                        html += `<td style="text-align: ${cell.align || 'left'};" ${attrs}>${cell.content}</td>`;
                     });
                     html += '</tr>';
                 }
-
-                html += '</tbody></table>';
+                html += '</tbody></table></div>';
                 return html;
             }
         };
@@ -1235,25 +1260,25 @@ function toAdvisingOfficeFromRole(roleLabel) {
             if (!file) return;
 
             const statusElement = document.getElementById(`${fileType}FileStatus`);
-            statusElement.textContent = '⏳ Loading...';
-            statusElement.style.backgroundColor = '#fff3cd';
-            statusElement.style.color = '#856404';
+            statusElement.textContent = 'Loading...';
+            statusElement.style.backgroundColor = 'var(--gold-soft)';
+            statusElement.style.color = 'var(--gold-deep)';
             statusElement.classList.remove('loaded');
 
             Papa.parse(file, {
                 complete: (results) => {
                     appState.data[fileType] = results.data;
                     statusElement.textContent = `✅ ${file.name} loaded (${results.data.length} rows)`;
-                    statusElement.style.backgroundColor = '#d4edda';
-                    statusElement.style.color = '#155724';
+                    statusElement.style.backgroundColor = 'var(--green-soft)';
+                    statusElement.style.color = 'var(--green)';
                     statusElement.classList.add('loaded');
                     checkAllFilesLoaded();
                 },
                 error: (error) => {
                     utils.showStatus(`Error loading ${fileType} file: ${error.message}`, 'error');
                     statusElement.textContent = '❌ Error loading file';
-                    statusElement.style.backgroundColor = '#f8d7da';
-                    statusElement.style.color = '#721c24';
+                    statusElement.style.backgroundColor = 'var(--accent-soft)';
+                    statusElement.style.color = 'var(--accent)';
                 }
             });
         }
@@ -1262,7 +1287,7 @@ function toAdvisingOfficeFromRole(roleLabel) {
             const processBtn = document.getElementById('processBtn');
             if (appState.data.main) {
                 processBtn.disabled = false;
-                processBtn.style.backgroundColor = '#007bff';
+                processBtn.style.backgroundColor = 'var(--accent)';
                 processBtn.style.boxShadow = '0 4px 8px rgba(0,123,255,0.3)';
                 processBtn.style.cursor = 'pointer';
                 
@@ -1272,7 +1297,7 @@ function toAdvisingOfficeFromRole(roleLabel) {
                 utils.showStatus(loadedFiles.join(', ') + ' loaded. Ready to process!', 'success');
             } else {
                 processBtn.disabled = true;
-                processBtn.style.backgroundColor = '#6c757d';
+                processBtn.style.backgroundColor = 'var(--ink-soft)';
                 processBtn.style.boxShadow = '0 4px 8px rgba(108,117,125,0.3)';
                 processBtn.style.cursor = 'not-allowed';
             }
@@ -2574,14 +2599,14 @@ analytics.advising = {
                 
                 let dashboardHTML = `
                     <div style="margin-bottom: 20px;">
-                        <div style="border-bottom: 2px solid #dee2e6; margin-bottom: 20px;">
-                            <button id="advisingTab" class="tab-button active" onclick="showTab('advising')" style="padding: 10px 20px; margin-right: 10px; border: none; background: none; border-bottom: 3px solid #007bff; font-weight: bold; cursor: pointer; color: #333;">Overview</button>
-                            <button id="staffTab" class="tab-button" onclick="showTab('staff')" style="padding: 10px 20px; margin-right: 10px; border: none; background: none; border-bottom: 3px solid transparent; cursor: pointer; color: #666;">Assigned Staff</button>
-                            ${appState.data.faculty ? '<button id="facultyTab" class="tab-button" onclick="showTab(\'faculty\')" style="padding: 10px 20px; border: none; background: none; border-bottom: 3px solid transparent; cursor: pointer; color: #666;">Faculty Mentors</button>' : ''}
-                            ${appState.data.peer ? '<button id="peerTab" class="tab-button" onclick="showTab(\'peer\')" style="padding: 10px 20px; border: none; background: none; border-bottom: 3px solid transparent; cursor: pointer; color: #666;">Peer Advisors</button>' : ''}
-                            ${appState.data.ir ? '<button id="studentTypeTab" class="tab-button" onclick="showTab(\'studentType\')" style="padding: 10px 20px; border: none; background: none; border-bottom: 3px solid transparent; cursor: pointer; color: #666;">Admit Type</button>' : ''}
-                            <button id="categoryTab" class="tab-button" onclick="showTab('category')" style="padding: 10px 20px; border: none; background: none; border-bottom: 3px solid transparent; cursor: pointer; color: #666;">Category Manager</button>
-                        </div>
+                        <nav class="tabs">
+                            <button id="advisingTab" class="tab-button active" onclick="showTab('advising')">Overview</button>
+                            <button id="staffTab" class="tab-button" onclick="showTab('staff')">Assigned Staff</button>
+                            ${appState.data.faculty ? '<button id="facultyTab" class="tab-button" onclick="showTab(\'faculty\')">Faculty Mentors</button>' : ''}
+                            ${appState.data.peer ? '<button id="peerTab" class="tab-button" onclick="showTab(\'peer\')">Peer Advisors</button>' : ''}
+                            ${appState.data.ir ? '<button id="studentTypeTab" class="tab-button" onclick="showTab(\'studentType\')">Admit Type</button>' : ''}
+                            <button id="categoryTab" class="tab-button" onclick="showTab('category')">Category Manager</button>
+                        </nav>
                         
                         <div id="advisingContent" class="tab-content">
                             ${generateAdvisingDashboard(analytics.advising, data.length)}
@@ -2610,21 +2635,21 @@ analytics.advising = {
                 `;
                 
                 document.getElementById('resultsArea').innerHTML = `
-                    <div style="margin-top: 20px; padding: 20px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px;">
-                        <h3 style="margin-top: 0; color: #333;">Processing Complete</h3>
-                        <p style="color: #666;">Successfully processed ${data.length} records.</p>
+                    <div class="results-panel">
+                        <div class="sec-label">Results</div>
+                        <p class="note" style="margin:-6px 0 16px">Processed ${data.length.toLocaleString()} records.</p>
                         ${dashboardHTML}
-                        <div style="margin-top: 30px; padding: 20px; background-color: #e8f4f8; border: 1px solid #b8dae5; border-radius: 8px;">
-                            <h4 style="margin-top: 0; color: #0c5460;">Export Processed Data</h4>
-                            <p style="color: #0c5460;">Click to download the processed CSV:</p>
-                            <button id="copyBtn" onclick="exportProcessedData()" style="background-color: #17a2b8; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Download CSV</button>
+                        <div class="sec-label">Export</div>
+                        <div class="panel">
+                            <p class="note" style="margin:0 0 12px">Download the processed CSV with the relationship and category columns selected above.</p>
+                            <button id="copyBtn" class="btn-lg" onclick="exportProcessedData()">Download CSV</button>
 
-<div class="progress-container" id="copyProgressContainer" style="margin-top: 15px; padding: 15px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; display: none;">
+<div class="progress-container" id="copyProgressContainer" style="margin-top: 15px; padding: 15px; background-color: var(--paper); border: 1px solid var(--line); border-radius: 4px; display: none;">
     <div class="progress-text" id="copyProgressText">Preparing CSV data...</div>
-    <div class="progress-bar" style="width: 100%; height: 20px; background-color: #e9ecef; border-radius: 10px; overflow: hidden; margin-bottom: 10px;">
-        <div class="progress-fill" id="copyProgressFill" style="height: 100%; background: linear-gradient(90deg, #17a2b8, #138496); border-radius: 10px; transition: width 0.3s ease; width: 0%;"></div>
+    <div class="progress-bar" style="width: 100%; height: 20px; background-color: var(--paper); border-radius: 10px; overflow: hidden; margin-bottom: 10px;">
+        <div class="progress-fill" id="copyProgressFill" style="height: 100%; background: var(--teal); border-radius: 10px; transition: width 0.3s ease; width: 0%;"></div>
     </div>
-    <div class="progress-details" id="copyProgressDetails" style="font-size: 12px; color: #6c757d; text-align: center;">Initializing...</div>
+    <div class="progress-details" id="copyProgressDetails" style="font-size: 12px; color: var(--ink-soft); text-align: center;">Initializing...</div>
 </div>
                         </div>
                     </div>
@@ -2664,66 +2689,66 @@ function generateAdvisingDashboard(analytics, totalRecords) {
     const singleOfficesAlpha = [...singleOffices].sort(([a],[b]) => a.localeCompare(b));
     const multipleOfficesAlpha = [...multipleOffices].sort(([a],[b]) => a.localeCompare(b));
 
-    let html = '<h4 style="color: #333; margin-bottom: 15px;">📊 Overview</h4>';
+    let html = '<h4 style="color: var(--ink); margin-bottom: 15px;">Overview</h4>';
 
     // Engaging summary cards
     html += `
     <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
-      <div style="flex:1 1 220px; background:#e7f3ff; border:1px solid #b8daf5; border-radius:8px; padding:14px;">
-        <div style="font-size:12px; color:#0b4f8a; font-weight:600;">Total Students</div>
-        <div style="font-size:24px; font-weight:800; color:#0b4f8a;">${totalRecords}</div>
+      <div style="flex:1 1 220px; background:var(--teal-soft); border:1px solid var(--teal); border-radius:8px; padding:14px;">
+        <div style="font-size:12px; color:var(--teal); font-weight:600;">Total Students</div>
+        <div style="font-size:24px; font-weight:800; color:var(--teal);">${totalRecords}</div>
       </div>
-      <div style="flex:1 1 220px; background:#eafaf1; border:1px solid #bfe8d0; border-radius:8px; padding:14px;">
-        <div style="font-size:12px; color:#0f6b3a; font-weight:600;">Single Office</div>
-        <div style="font-size:24px; font-weight:800; color:#0f6b3a;">${singleOfficeTotal}</div>
-        <div style="font-size:12px; color:#0f6b3a;">${((singleOfficeTotal/totalRecords)*100).toFixed(1)}%</div>
+      <div style="flex:1 1 220px; background:var(--green-soft); border:1px solid var(--green); border-radius:8px; padding:14px;">
+        <div style="font-size:12px; color:var(--green); font-weight:600;">Single Office</div>
+        <div style="font-size:24px; font-weight:800; color:var(--green);">${singleOfficeTotal}</div>
+        <div style="font-size:12px; color:var(--green);">${((singleOfficeTotal/totalRecords)*100).toFixed(1)}%</div>
         ${analytics.singleOfficeBreakdown ? `
-        <div style="font-size:10px; color:#0f6b3a; margin-top:4px; border-top:1px solid #bfe8d0; padding-top:4px;">
+        <div style="font-size:10px; color:var(--green); margin-top:4px; border-top:1px solid var(--green); padding-top:4px;">
           Single Advisor: ${analytics.singleOfficeBreakdown.singleAdvisor}<br>
           Multiple Advisors: ${analytics.singleOfficeBreakdown.multipleAdvisors}<br>
           No Professional Advisor: ${analytics.singleOfficeBreakdown.noAdvisor || 0}
         </div>` : ''}
       </div>
-      <div style="flex:1 1 220px; background:#fff7e6; border:1px solid #ffe0a6; border-radius:8px; padding:14px;">
-        <div style="font-size:12px; color:#8a5b0b; font-weight:600;">Multiple Offices</div>
-        <div style="font-size:24px; font-weight:800; color:#8a5b0b;">${multipleOfficeTotal}</div>
-        <div style="font-size:12px; color:#8a5b0b;">${((multipleOfficeTotal/totalRecords)*100).toFixed(1)}%</div>
+      <div style="flex:1 1 220px; background:var(--gold-soft); border:1px solid var(--gold); border-radius:8px; padding:14px;">
+        <div style="font-size:12px; color:var(--gold-deep); font-weight:600;">Multiple Offices</div>
+        <div style="font-size:24px; font-weight:800; color:var(--gold-deep);">${multipleOfficeTotal}</div>
+        <div style="font-size:12px; color:var(--gold-deep);">${((multipleOfficeTotal/totalRecords)*100).toFixed(1)}%</div>
       </div>
-      <div style="flex:1 1 220px; background:#fdecee; border:1px solid #f5c2c7; border-radius:8px; padding:14px;">
-        <div style="font-size:12px; color:#7e1e2a; font-weight:600;">No Office</div>
-        <div style="font-size:24px; font-weight:800; color:#7e1e2a;">${noOfficeCount}</div>
-        <div style="font-size:12px; color:#7e1e2a;">${((noOfficeCount/totalRecords)*100).toFixed(1)}%</div>
+      <div style="flex:1 1 220px; background:var(--accent-soft); border:1px solid var(--accent); border-radius:8px; padding:14px;">
+        <div style="font-size:12px; color:var(--accent); font-weight:600;">No Office</div>
+        <div style="font-size:24px; font-weight:800; color:var(--accent);">${noOfficeCount}</div>
+        <div style="font-size:12px; color:var(--accent);">${((noOfficeCount/totalRecords)*100).toFixed(1)}%</div>
       </div>
     </div>`;
 
     // Data Quality Report for Advisors
     if (dataQuality) {
-        html += '<h5 style="color: #dc3545; margin-bottom: 15px;">🔍 Advisor Data Quality Report</h5>';
+        html += '<h5 style="color: var(--accent); margin-bottom: 15px;">Advisor Data Quality Report</h5>';
         
         const hasIssues = dataQuality.advisorsInCaseloadNotInFile.length > 0 || dataQuality.advisorsInFileNotInCaseload.length > 0;
         
         if (hasIssues) {
-            html += '<div style="margin-bottom: 20px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px;">';
-            html += '<p style="margin: 0 0 10px 0; font-weight: bold; color: #856404;">⚠️ Advisor Data Mismatches Found:</p>';
+            html += '<div style="margin-bottom: 20px; padding: 15px; background-color: var(--gold-soft); border: 1px solid var(--gold); border-radius: 5px;">';
+            html += '<p style="margin: 0 0 10px 0; font-weight: bold; color: var(--gold-deep);">⚠️ Advisor Data Mismatches Found:</p>';
             
             // Always render this check, pass or fail. Previously it was hidden entirely
             // when the count was zero, so a clean result was indistinguishable from the
             // check not having run - there was no way to tell "all matched" apart from
             // "nothing was checked".
             if (dataQuality.advisorsInCaseloadNotInFile.length > 0) {
-                html += `<p style="margin: 5px 0; color: #721c24;"><strong>Primary Advisors in Caseload but NOT in Advisor Staff File (${dataQuality.advisorsInCaseloadNotInFile.length}):</strong></p>`;
-                html += '<ul style="margin: 5px 0 15px 20px; color: #721c24;">';
+                html += `<p style="margin: 5px 0; color: var(--accent);"><strong>Primary Advisors in Caseload but NOT in Advisor Staff File (${dataQuality.advisorsInCaseloadNotInFile.length}):</strong></p>`;
+                html += '<ul style="margin: 5px 0 15px 20px; color: var(--accent);">';
                 dataQuality.advisorsInCaseloadNotInFile.forEach(advisor => { html += `<li>${advisor}</li>`; });
                 html += '</ul>';
             } else {
-                html += '<div style="margin: 5px 0 15px 0; padding: 10px 12px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px;">';
-                html += `<p style="margin: 0; color: #155724;"><strong>✅ Primary Advisors in Caseload but NOT in Advisor Staff File: none</strong></p>`;
-                html += `<p style="margin: 4px 0 0 0; font-size: 12px; color: #155724;"><em>All ${dataQuality.totalAdvisorsInCaseload} primary advisors in the caseload file were found in the advisor staff file.</em></p>`;
+                html += '<div style="margin: 5px 0 15px 0; padding: 10px 12px; background-color: var(--green-soft); border: 1px solid var(--green); border-radius: 4px;">';
+                html += `<p style="margin: 0; color: var(--green);"><strong>✅ Primary Advisors in Caseload but NOT in Advisor Staff File: none</strong></p>`;
+                html += `<p style="margin: 4px 0 0 0; font-size: 12px; color: var(--green);"><em>All ${dataQuality.totalAdvisorsInCaseload} primary advisors in the caseload file were found in the advisor staff file.</em></p>`;
                 html += '</div>';
             }
             
             if (dataQuality.advisorsInFileNotInCaseload.length > 0) {
-                html += `<p style="margin: 5px 0 8px 0; color: #0c5460;"><strong>Advisors in Staff File but NOT in Caseload (${dataQuality.advisorsInFileNotInCaseload.length}):</strong></p>`;
+                html += `<p style="margin: 5px 0 8px 0; color: var(--teal);"><strong>Advisors in Staff File but NOT in Caseload (${dataQuality.advisorsInFileNotInCaseload.length}):</strong></p>`;
                 // Nine columns is wider than the panel, so allow horizontal scrolling
                 // rather than letting the cells compress.
                 const advCols = [
@@ -2737,18 +2762,18 @@ function generateAdvisingDashboard(analytics, totalRecords) {
                     ['Count as advising', 'countAsAdvising'],
                     ['Notes',             'notes']
                 ];
-                html += '<div style="overflow-x:auto; margin-bottom:15px; border:1px solid #bee5eb; border-radius:4px;">';
+                html += '<div style="overflow-x:auto; margin-bottom:15px; border:1px solid var(--teal); border-radius:4px;">';
                 html += '<table style="border-collapse:collapse; font-size:13px; min-width:100%; white-space:nowrap;">';
-                html += '<thead><tr style="background-color:#d1ecf1;">';
+                html += '<thead><tr style="background-color:var(--teal-soft);">';
                 advCols.forEach(([label]) => {
-                    html += `<th style="text-align:left; padding:7px 10px; border:1px solid #bee5eb; color:#0c5460;">${label}</th>`;
+                    html += `<th style="text-align:left; padding:7px 10px; border:1px solid var(--teal); color:var(--teal);">${label}</th>`;
                 });
                 html += '</tr></thead><tbody>';
                 dataQuality.advisorsInFileNotInCaseload.forEach((advisor, i) => {
-                    const bg = i % 2 === 0 ? '#f0f9fc' : '#ffffff';
+                    const bg = i % 2 === 0 ? 'var(--paper)' : '#ffffff';
                     html += `<tr style="background-color:${bg};">`;
                     advCols.forEach(([, key]) => {
-                        html += `<td style="padding:6px 10px; border:1px solid #bee5eb; color:#0c5460;">${advisor[key] || ''}</td>`;
+                        html += `<td style="padding:6px 10px; border:1px solid var(--teal); color:var(--teal);">${advisor[key] || ''}</td>`;
                     });
                     html += '</tr>';
                 });
@@ -2756,12 +2781,12 @@ function generateAdvisingDashboard(analytics, totalRecords) {
                 html += '</div>';
             }
             
-            html += `<p style="margin: 10px 0 0 0; font-size: 12px; color: #856404;"><em>Summary: ${dataQuality.totalAdvisorsInCaseload} unique advisors in caseload, ${dataQuality.totalAdvisorsInFile} in staff file</em></p>`;
+            html += `<p style="margin: 10px 0 0 0; font-size: 12px; color: var(--gold-deep);"><em>Summary: ${dataQuality.totalAdvisorsInCaseload} unique advisors in caseload, ${dataQuality.totalAdvisorsInFile} in staff file</em></p>`;
             html += '</div>';
         } else {
-            html += '<div style="margin-bottom: 20px; padding: 15px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px;">';
-            html += '<p style="margin: 0; font-weight: bold; color: #155724;">✅ All primary advisors match between files!</p>';
-            html += `<p style="margin: 5px 0 0 0; font-size: 12px; color: #155724;"><em>${dataQuality.totalAdvisorsInCaseload} unique primary advisors found in both files, with no unmatched entries in either direction</em></p>`;
+            html += '<div style="margin-bottom: 20px; padding: 15px; background-color: var(--green-soft); border: 1px solid var(--green); border-radius: 5px;">';
+            html += '<p style="margin: 0; font-weight: bold; color: var(--green);">✅ All primary advisors match between files!</p>';
+            html += `<p style="margin: 5px 0 0 0; font-size: 12px; color: var(--green);"><em>${dataQuality.totalAdvisorsInCaseload} unique primary advisors found in both files, with no unmatched entries in either direction</em></p>`;
             html += '</div>';
         }
     }
@@ -2770,7 +2795,7 @@ function generateAdvisingDashboard(analytics, totalRecords) {
     const studentsWithOffice = singleOfficeTotal + multipleOfficeTotal;
     
     if (studentsWithOffice > 0) {
-        html += '<h5 style="color:#333;margin:20px 0 10px;">Students with Office Assignments</h5>';
+        html += '<h5 style="color:var(--ink);margin:20px 0 10px;">Students with Office Assignments</h5>';
         const headers = [
             { title: 'Advising Office', align: 'left' },
             { title: 'Student Count', align: 'right' },
@@ -2780,7 +2805,7 @@ function generateAdvisingDashboard(analytics, totalRecords) {
 
         // Single Office section
         if (singleOfficesAlpha.length > 0) {
-            rows.push({ cells: [{ content: 'Single Office Assignments', style: 'background-color: #f8f9fa; font-weight: bold;', colspan: 3 }] });
+            rows.push({ cells: [{ content: 'Single Office Assignments', style: 'background-color: var(--paper); font-weight: bold;', colspan: 3 }] });
             
             // Add breakdown for single vs multiple advisors within single office
             if (analytics.singleOfficeBreakdown) {
@@ -2788,9 +2813,9 @@ function generateAdvisingDashboard(analytics, totalRecords) {
                     const pct = ((analytics.singleOfficeBreakdown.singleAdvisor / studentsWithOffice) * 100).toFixed(1);
                     rows.push({
                         cells: [
-                            { content: '├── Single Advisor', style: 'padding-left: 30px; font-style: italic; color: #495057;' },
-                            { content: analytics.singleOfficeBreakdown.singleAdvisor, style: 'text-align: right; font-style: italic; color: #495057;' },
-                            { content: `${pct}%`, style: 'text-align: right; font-style: italic; color: #495057;' }
+                            { content: '├── Single Advisor', style: 'padding-left: 30px; font-style: italic; color: var(--ink-soft);' },
+                            { content: analytics.singleOfficeBreakdown.singleAdvisor, style: 'text-align: right; font-style: italic; color: var(--ink-soft);' },
+                            { content: `${pct}%`, style: 'text-align: right; font-style: italic; color: var(--ink-soft);' }
                         ]
                     });
                 }
@@ -2800,9 +2825,9 @@ function generateAdvisingDashboard(analytics, totalRecords) {
                     const multiConnector = (analytics.singleOfficeBreakdown.noAdvisor > 0) ? '├──' : '└──';
                     rows.push({
                         cells: [
-                            { content: `${multiConnector} Multiple Advisors (same office)`, style: 'padding-left: 30px; font-style: italic; color: #495057;' },
-                            { content: analytics.singleOfficeBreakdown.multipleAdvisors, style: 'text-align: right; font-style: italic; color: #495057;' },
-                            { content: `${pct}%`, style: 'text-align: right; font-style: italic; color: #495057;' }
+                            { content: `${multiConnector} Multiple Advisors (same office)`, style: 'padding-left: 30px; font-style: italic; color: var(--ink-soft);' },
+                            { content: analytics.singleOfficeBreakdown.multipleAdvisors, style: 'text-align: right; font-style: italic; color: var(--ink-soft);' },
+                            { content: `${pct}%`, style: 'text-align: right; font-style: italic; color: var(--ink-soft);' }
                         ]
                     });
                     
@@ -2817,9 +2842,9 @@ function generateAdvisingDashboard(analytics, totalRecords) {
                             const officePct = ((count / analytics.singleOfficeBreakdown.multipleAdvisors) * 100).toFixed(1);
                             rows.push({
                                 cells: [
-                                    { content: `${prefix} ${office}`, style: 'padding-left: 60px; font-size: 12px; color: #6c757d;' },
-                                    { content: count, style: 'text-align: right; font-size: 12px; color: #6c757d;' },
-                                    { content: `${officePct}% of multi`, style: 'text-align: right; font-size: 12px; color: #6c757d;' }
+                                    { content: `${prefix} ${office}`, style: 'padding-left: 60px; font-size: 12px; color: var(--ink-soft);' },
+                                    { content: count, style: 'text-align: right; font-size: 12px; color: var(--ink-soft);' },
+                                    { content: `${officePct}% of multi`, style: 'text-align: right; font-size: 12px; color: var(--ink-soft);' }
                                 ]
                             });
                         });
@@ -2830,9 +2855,9 @@ function generateAdvisingDashboard(analytics, totalRecords) {
                     const pct = ((analytics.singleOfficeBreakdown.noAdvisor / studentsWithOffice) * 100).toFixed(1);
                     rows.push({
                         cells: [
-                            { content: '└── No Professional Advisor (Health Sciences only)', style: 'padding-left: 30px; font-style: italic; color: #495057;' },
-                            { content: analytics.singleOfficeBreakdown.noAdvisor, style: 'text-align: right; font-style: italic; color: #495057;' },
-                            { content: `${pct}%`, style: 'text-align: right; font-style: italic; color: #495057;' }
+                            { content: '└── No Professional Advisor (Health Sciences only)', style: 'padding-left: 30px; font-style: italic; color: var(--ink-soft);' },
+                            { content: analytics.singleOfficeBreakdown.noAdvisor, style: 'text-align: right; font-style: italic; color: var(--ink-soft);' },
+                            { content: `${pct}%`, style: 'text-align: right; font-style: italic; color: var(--ink-soft);' }
                         ]
                     });
                 }
@@ -2859,7 +2884,7 @@ function generateAdvisingDashboard(analytics, totalRecords) {
             // Subtotal row
             const singlePct = ((singleOfficeTotal / studentsWithOffice) * 100).toFixed(1);
             rows.push({
-                style: 'background-color: #f8f9fa;',
+                style: 'background-color: var(--paper);',
                 cells: [
                     { content: 'Subtotal — Single Office', style: 'font-weight:bold;' },
                     { content: singleOfficeTotal, style: 'text-align:right; font-weight:bold;' },
@@ -2870,7 +2895,7 @@ function generateAdvisingDashboard(analytics, totalRecords) {
 
         // Multiple Office section
         if (multipleOfficesAlpha.length > 0) {
-            rows.push({ cells: [{ content: 'Multiple Office Assignments', style: 'background-color: #f8f9fa; font-weight: bold;', colspan: 3 }] });
+            rows.push({ cells: [{ content: 'Multiple Office Assignments', style: 'background-color: var(--paper); font-weight: bold;', colspan: 3 }] });
             multipleOfficesAlpha.forEach(([office, count]) => {
                 const percentage = ((count / studentsWithOffice) * 100).toFixed(1);
                 rows.push({
@@ -2884,7 +2909,7 @@ function generateAdvisingDashboard(analytics, totalRecords) {
             // Subtotal row
             const multiplePct = ((multipleOfficeTotal / studentsWithOffice) * 100).toFixed(1);
             rows.push({
-                style: 'background-color: #f8f9fa;',
+                style: 'background-color: var(--paper);',
                 cells: [
                     { content: 'Subtotal — Multiple Offices', style: 'font-weight:bold;' },
                     { content: multipleOfficeTotal, style: 'text-align:right; font-weight:bold;' },
@@ -2895,7 +2920,7 @@ function generateAdvisingDashboard(analytics, totalRecords) {
 
         html += utils.createTable(headers, rows, {
             grandTotal: {
-                color: '#333',
+                color: 'var(--ink)',
                 cells: [
                     { content: 'GRAND TOTAL — With Office' },
                     { content: studentsWithOffice, align: 'right' },
@@ -2910,8 +2935,8 @@ function generateAdvisingDashboard(analytics, totalRecords) {
 
     // === New: Advisor Assignments (Unified Table) ===
     if (advisorAssignmentsFlat) {
-        html += '<h4 style="color:#333; margin: 24px 0 10px;">🧑‍🏫 Advisor Assignments</h4>';
-        html += '<div style="font-size:12px; color:#6c757d; margin-bottom:10px;">Counts reflect the number of unique students assigned to each advisor. Each advisor appears in only one office based on their role. <strong>Uncheck advisors to exclude them from the Median Caseload calculations.</strong></div>';
+        html += '<h4 style="color:var(--ink); margin: 24px 0 10px;">Advisor Assignments</h4>';
+        html += '<div style="font-size:12px; color:var(--ink-soft); margin-bottom:10px;">Counts reflect the number of unique students assigned to each advisor. Each advisor appears in only one office based on their role. <strong>Uncheck advisors to exclude them from the Median Caseload calculations.</strong></div>';
         
         const headers = [
             { title: 'Advisor', align: 'left' },
@@ -2942,7 +2967,7 @@ function generateAdvisingDashboard(analytics, totalRecords) {
         });
         html += utils.createTable(headers, rows, {
             grandTotal: {
-                color: '#333',
+                color: 'var(--ink)',
                 cells: [
                     { content: 'GRAND TOTAL', colspan: 2 },
                     { content: grandExclusive, align: 'right' },
@@ -2964,8 +2989,8 @@ function generateAdvisingDashboard(analytics, totalRecords) {
         });
         const entries = Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
         const total = entries.reduce((n, [, c]) => n + c, 0);
-        html += '<h4 style="color:#333; margin: 24px 0 10px;">🎓 Students by Major</h4>';
-        html += `<div style="font-size:12px; color:#6c757d; margin-bottom:10px;">${entries.length} majors (with subplan, as listed in Category). One row per student.</div>`;
+        html += '<h4 style="color:var(--ink); margin: 24px 0 10px;">Students by Major</h4>';
+        html += `<div style="font-size:12px; color:var(--ink-soft); margin-bottom:10px;">${entries.length} majors (with subplan, as listed in Category). One row per student.</div>`;
         const mh = [
             { title: 'Major with subplan', align: 'left' },
             { title: 'Students', align: 'right' },
@@ -2974,9 +2999,9 @@ function generateAdvisingDashboard(analytics, totalRecords) {
         const mrows = entries.map(([m, c]) => ({ cells: [
             { content: m },
             { content: c.toLocaleString(), style: 'text-align:right;' },
-            { content: total ? ((c / total) * 100).toFixed(1) + '%' : '', style: 'text-align:right; color:#6c757d;' }
+            { content: total ? ((c / total) * 100).toFixed(1) + '%' : '', style: 'text-align:right; color:var(--ink-soft);' }
         ] }));
-        html += utils.createTable(mh, mrows, { grandTotal: { color: '#333', cells: [
+        html += utils.createTable(mh, mrows, { grandTotal: { color: 'var(--ink)', cells: [
             { content: 'TOTAL' },
             { content: total.toLocaleString(), align: 'right' },
             { content: '100.0%', align: 'right' }
@@ -2991,7 +3016,7 @@ return html;
         
 function generateFacultyDashboard(analytics) {
     if (!analytics) return '<p>No faculty data available.</p>';
-    let html = '<h4 style="color:#333;margin-bottom:15px;">👨‍🏫 Faculty Mentor Dashboard</h4>';
+    let html = '<h4 style="color:var(--ink);margin-bottom:15px;">Faculty Mentor Dashboard</h4>';
 
     // Calculate relationships & multiples
     const totalRelationships = Object.values(analytics.departmentStats).reduce((sum, d) => sum + d.students, 0);
@@ -3001,27 +3026,27 @@ function generateFacultyDashboard(analytics) {
     // Summary cards
     html += `
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
-      <div style="flex:1 1 220px;background:#e7f3ff;border:1px solid #b8daf5;border-radius:8px;padding:14px;">
-        <div style="font-size:12px;color:#0b4f8a;font-weight:600;">Total Mentors</div>
-        <div style="font-size:24px;font-weight:800;color:#0b4f8a;">${analytics.totalStaff}</div>
+      <div style="flex:1 1 220px;background:var(--teal-soft);border:1px solid var(--teal);border-radius:8px;padding:14px;">
+        <div style="font-size:12px;color:var(--teal);font-weight:600;">Total Mentors</div>
+        <div style="font-size:24px;font-weight:800;color:var(--teal);">${analytics.totalStaff}</div>
       </div>
-      <div style="flex:1 1 220px;background:#eafaf1;border:1px solid #bfe8d0;border-radius:8px;padding:14px;">
-        <div style="font-size:12px;color:#0f6b3a;font-weight:600;">Students with Mentors</div>
-        <div style="font-size:24px;font-weight:800;color:#0f6b3a;">${analytics.totalStudents}</div>
+      <div style="flex:1 1 220px;background:var(--green-soft);border:1px solid var(--green);border-radius:8px;padding:14px;">
+        <div style="font-size:12px;color:var(--green);font-weight:600;">Students with Mentors</div>
+        <div style="font-size:24px;font-weight:800;color:var(--green);">${analytics.totalStudents}</div>
       </div>
-      <div style="flex:1 1 220px;background:#fff7e6;border:1px solid #ffe0a6;border-radius:8px;padding:14px;">
-        <div style="font-size:12px;color:#8a5b0b;font-weight:600;">Total Relationships</div>
-        <div style="font-size:24px;font-weight:800;color:#8a5b0b;">${totalRelationships}</div>
-        <div style="font-size:12px;color:#8a5b0b;">Multiple-Mentor Links: ${multipleMentorCount}</div>
+      <div style="flex:1 1 220px;background:var(--gold-soft);border:1px solid var(--gold);border-radius:8px;padding:14px;">
+        <div style="font-size:12px;color:var(--gold-deep);font-weight:600;">Total Relationships</div>
+        <div style="font-size:24px;font-weight:800;color:var(--gold-deep);">${totalRelationships}</div>
+        <div style="font-size:12px;color:var(--gold-deep);">Multiple-Mentor Links: ${multipleMentorCount}</div>
       </div>
-      <div style="flex:1 1 220px;background:#fdecee;border:1px solid #f5c2c7;border-radius:8px;padding:14px;">
-        <div style="font-size:12px;color:#7e1e2a;font-weight:600;">Avg Students per Mentor</div>
-        <div style="font-size:24px;font-weight:800;color:#7e1e2a;">${avg}</div>
+      <div style="flex:1 1 220px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:8px;padding:14px;">
+        <div style="font-size:12px;color:var(--accent);font-weight:600;">Avg Students per Mentor</div>
+        <div style="font-size:24px;font-weight:800;color:var(--accent);">${avg}</div>
       </div>
     </div>`;
 
     // Department breakdown table (alpha by dept)
-    html += '<h5 style="color:#333;margin-bottom:15px;">📊 Faculty Department Breakdown</h5>';
+    html += '<h5 style="color:var(--ink);margin-bottom:15px;">Faculty Department Breakdown</h5>';
     const headers = [
         { title: 'Faculty Department', align: 'left' },
         { title: 'Mentors', align: 'right' },
@@ -3045,7 +3070,7 @@ function generateFacultyDashboard(analytics) {
     const grandTotalAvg = totalMentors > 0 ? (totalStudents/totalMentors).toFixed(1) : '0.0';
     html += utils.createTable(headers, rows, {
         grandTotal: {
-            color:'#333',
+            color:'var(--ink)',
             cells:[
                 { content:'GRAND TOTAL' },
                 { content: totalMentors, align:'right' },
@@ -3059,7 +3084,7 @@ function generateFacultyDashboard(analytics) {
     // Subdepartment breakouts within each department
     if (analytics.departmentSubStats && Object.keys(analytics.departmentSubStats).length > 0) {
         html += '<div style="margin-top:16px;"></div>';
-        html += '<h6 style="margin:8px 0;color:#555;">▸ Subdepartment Breakouts (within each Faculty Department)</h6>';
+        html += '<h6 style="margin:8px 0;color:var(--ink-soft);">▸ Subdepartment Breakouts (within each Faculty Department)</h6>';
         const depts = Object.keys(analytics.departmentSubStats).sort((a,b)=>a.localeCompare(b));
         depts.forEach(dept => {
             const subMap = analytics.departmentSubStats[dept];
@@ -3077,8 +3102,8 @@ function generateFacultyDashboard(analytics) {
                 ]};
             });
             const deptAvg = tMent > 0 ? (tStud / tMent).toFixed(1) : '0.0';
-            html += `<div style="margin:10px 0 16px 0;padding:12px;border:1px solid #e9ecef;border-radius:8px;background:#fafbfc;">
-                        <div style="font-weight:700;margin-bottom:6px;color:#333;">${dept}</div>`;
+            html += `<div style="margin:10px 0 16px 0;padding:12px;border:1px solid var(--paper);border-radius:8px;background:var(--paper);">
+                        <div style="font-weight:700;margin-bottom:6px;color:var(--ink);">${dept}</div>`;
             html += utils.createTable(
                 [
                     { title: 'Faculty Academic Department_sub', align: 'left' },
@@ -3089,7 +3114,7 @@ function generateFacultyDashboard(analytics) {
                 rowsSub,
                 {
                     grandTotal: {
-                        color:'#333',
+                        color:'var(--ink)',
                         cells:[
                             { content:'SUBTOTAL' },
                             { content: tMent, align:'right' },
@@ -3104,15 +3129,15 @@ function generateFacultyDashboard(analytics) {
     }
 // Data Quality
     if (analytics.dataQuality) {
-        html += '<div style="margin-top:30px;border-top:2px solid #dee2e6;padding-top:20px;">';
-        html += '<h5 style="margin-top:0;color:#dc3545;">🔍 Faculty Data Quality Report</h5>';
+        html += '<div style="margin-top:30px;border-top:2px solid var(--line);padding-top:20px;">';
+        html += '<h5 style="margin-top:0;color:var(--accent);">Faculty Data Quality Report</h5>';
         const { dataQuality } = analytics;
         const hasIssues = dataQuality.facultyInCaseloadNotInFile.length > 0 || dataQuality.facultyInFileNotInCaseload.length > 0;
         if (hasIssues) {
-            html += '<div style="margin-bottom:20px;padding:15px;background-color:#fff3cd;border:1px solid #ffeaa7;border-radius:5px;">';
-            html += '<p style="margin:0 0 10px 0;font-weight:bold;color:#856404;">⚠️ Faculty Data Mismatches Found:</p>';
+            html += '<div style="margin-bottom:20px;padding:15px;background-color:var(--gold-soft);border:1px solid var(--gold);border-radius:5px;">';
+            html += '<p style="margin:0 0 10px 0;font-weight:bold;color:var(--gold-deep);">⚠️ Faculty Data Mismatches Found:</p>';
             if (dataQuality.facultyInCaseloadNotInFile.length > 0) {
-                html += `<p style="margin:5px 0;color:#721c24;"><strong>Faculty in Caseload but NOT in Faculty File (${dataQuality.facultyInCaseloadNotInFile.length}):</strong></p>`;
+                html += `<p style="margin:5px 0;color:var(--accent);"><strong>Faculty in Caseload but NOT in Faculty File (${dataQuality.facultyInCaseloadNotInFile.length}):</strong></p>`;
                 const groupedByDept = {};
                 dataQuality.facultyInCaseloadNotInFile.forEach(faculty => {
                     const dept = dataQuality.facultyDepartmentMap[faculty] || 'Unknown Department';
@@ -3120,15 +3145,15 @@ function generateFacultyDashboard(analytics) {
                     groupedByDept[dept].push(faculty);
                 });
                 Object.keys(groupedByDept).sort().forEach(dept => {
-                    html += `<div style="margin:10px 0 10px 20px;padding:8px;background-color:#fff8e7;border-left:3px solid #dc3545;border-radius:3px;">`;
-                    html += `<strong style="color:#721c24;">${dept} (${groupedByDept[dept].length}):</strong><br>`;
-                    html += '<ul style="margin:5px 0 0 20px;color:#721c24;">';
+                    html += `<div style="margin:10px 0 10px 20px;padding:8px;background-color:var(--gold-soft);border-left:3px solid var(--accent);border-radius:3px;">`;
+                    html += `<strong style="color:var(--accent);">${dept} (${groupedByDept[dept].length}):</strong><br>`;
+                    html += '<ul style="margin:5px 0 0 20px;color:var(--accent);">';
                     groupedByDept[dept].sort().forEach(f => html += `<li>${f}</li>`);
                     html += '</ul></div>';
                 });
             }
             if (dataQuality.facultyInFileNotInCaseload.length > 0) {
-                html += `<p style="margin:15px 0 5px 0;color:#0c5460;"><strong>Faculty in List File but NOT in Caseload (${dataQuality.facultyInFileNotInCaseload.length}):</strong></p>`;
+                html += `<p style="margin:15px 0 5px 0;color:var(--teal);"><strong>Faculty in List File but NOT in Caseload (${dataQuality.facultyInFileNotInCaseload.length}):</strong></p>`;
                 const groupedByDept = {};
                 dataQuality.facultyInFileNotInCaseload.forEach(faculty => {
                     const dept = dataQuality.fileFacultyDepartmentMap[faculty] || 'Unknown Department';
@@ -3136,19 +3161,19 @@ function generateFacultyDashboard(analytics) {
                     groupedByDept[dept].push(faculty);
                 });
                 Object.keys(groupedByDept).sort().forEach(dept => {
-                    html += `<div style="margin:10px 0 10px 20px;padding:8px;background-color:#e7f3ff;border-left:3px solid #17a2b8;border-radius:3px;">`;
-                    html += `<strong style="color:#0c5460;">${dept} (${groupedByDept[dept].length}):</strong><br>`;
-                    html += '<ul style="margin:5px 0 0 20px;color:#0c5460;">';
+                    html += `<div style="margin:10px 0 10px 20px;padding:8px;background-color:var(--teal-soft);border-left:3px solid var(--teal);border-radius:3px;">`;
+                    html += `<strong style="color:var(--teal);">${dept} (${groupedByDept[dept].length}):</strong><br>`;
+                    html += '<ul style="margin:5px 0 0 20px;color:var(--teal);">';
                     groupedByDept[dept].sort().forEach(f => html += `<li>${f}</li>`);
                     html += '</ul></div>';
                 });
             }
-            html += `<p style="margin:10px 0 0 0;font-size:12px;color:#856404;"><em>Summary: ${dataQuality.totalFacultyInCaseload} unique faculty in caseload, ${dataQuality.totalFacultyInFile} in faculty file</em></p>`;
+            html += `<p style="margin:10px 0 0 0;font-size:12px;color:var(--gold-deep);"><em>Summary: ${dataQuality.totalFacultyInCaseload} unique faculty in caseload, ${dataQuality.totalFacultyInFile} in faculty file</em></p>`;
             html += '</div>';
         } else {
-            html += '<div style="margin-bottom:20px;padding:15px;background-color:#d4edda;border:1px solid #c3e6cb;border-radius:5px;">';
-            html += '<p style="margin:0;font-weight:bold;color:#155724;">✅ All faculty mentors match between files!</p>';
-            html += `<p style="margin:5px 0 0 0;font-size:12px;color:#155724;"><em>${dataQuality.totalFacultyInCaseload} unique faculty found in both files</em></p>`;
+            html += '<div style="margin-bottom:20px;padding:15px;background-color:var(--green-soft);border:1px solid var(--green);border-radius:5px;">';
+            html += '<p style="margin:0;font-weight:bold;color:var(--green);">✅ All faculty mentors match between files!</p>';
+            html += `<p style="margin:5px 0 0 0;font-size:12px;color:var(--green);"><em>${dataQuality.totalFacultyInCaseload} unique faculty found in both files</em></p>`;
             html += '</div>';
         }
         html += '</div>';
@@ -3157,12 +3182,12 @@ function generateFacultyDashboard(analytics) {
     // Mismatch analysis block (unchanged)
     if (analytics.departmentMismatchAnalysis) {
         const { departmentMismatchAnalysis } = analytics;
-        html += '<div style="margin-top:30px;border-top:2px solid #dee2e6;padding-top:20px;">';
-        html += '<h5 style="margin-top:0;color:#dc3545;">🔍 Faculty-Student Department Mismatch Analysis</h5>';
+        html += '<div style="margin-top:30px;border-top:2px solid var(--line);padding-top:20px;">';
+        html += '<h5 style="margin-top:0;color:var(--accent);">Faculty-Student Department Mismatch Analysis</h5>';
         if (departmentMismatchAnalysis.totalMismatches > 0) {
-            html += '<div style="margin-bottom:20px;padding:15px;background-color:#fff3cd;border:1px solid #ffeaa7;border-radius:5px;">';
-            html += `<p style="margin:0 0 10px 0;font-weight:bold;color:#856404;">⚠️ Found ${departmentMismatchAnalysis.totalMismatches} Faculty-Student Department Mismatches:</p>`;
-            html += '<p style="margin:0;color:#856404;font-size:14px;">Cases where mentors are assigned outside their department specialization.</p>';
+            html += '<div style="margin-bottom:20px;padding:15px;background-color:var(--gold-soft);border:1px solid var(--gold);border-radius:5px;">';
+            html += `<p style="margin:0 0 10px 0;font-weight:bold;color:var(--gold-deep);">⚠️ Found ${departmentMismatchAnalysis.totalMismatches} Faculty-Student Department Mismatches:</p>`;
+            html += '<p style="margin:0;color:var(--gold-deep);font-size:14px;">Cases where mentors are assigned outside their department specialization.</p>';
             html += '</div>';
             const mismatchHeaders = [
                 { title: 'Faculty Academic Department_sub', align: 'left' },
@@ -3182,27 +3207,27 @@ function generateFacultyDashboard(analytics) {
                 const [f, s] = key.split(' → ');
                 totalMismatchCount += count;
                 rows.push({ cells:[
-                    { content:f, style:'font-weight:600;color:#0056b3;' },
-                    { content:s, style:'font-weight:600;color:#dc3545;' },
-                    { content:count, style:'text-align:right;font-weight:bold;color:#e67e22;' }
+                    { content:f, style:'font-weight:600;color:var(--accent-dark);' },
+                    { content:s, style:'font-weight:600;color:var(--accent);' },
+                    { content:count, style:'text-align:right;font-weight:bold;color:var(--gold-deep);' }
                 ]});
             });
             html += utils.createTable(mismatchHeaders, rows, {
                 grandTotal: {
-                    color:'#dc3545',
+                    color:'var(--accent)',
                     cells:[
                         { content:'TOTAL MISMATCHES', colspan:2 },
                         { content: totalMismatchCount, align:'right' }
                     ]
                 }
             });
-            html += '<div style="margin-top:15px;padding:10px;background-color:#f8f9fa;border-radius:5px;font-size:12px;">';
+            html += '<div style="margin-top:15px;padding:10px;background-color:var(--paper);border-radius:5px;font-size:12px;">';
             html += '<strong>Note:</strong> Mismatches can reflect cross-department mentoring or data issues.';
             html += '</div>';
         } else {
-            html += '<div style="margin-bottom:20px;padding:15px;background-color:#d4edda;border:1px solid #c3e6cb;border-radius:5px;">';
-            html += '<p style="margin:0;font-weight:bold;color:#155724;">✅ No Faculty-Student Department Mismatches Found!</p>';
-            html += '<p style="margin:5px 0 0 0;font-size:12px;color:#155724;"><em>All mentors align with student departments.</em></p>';
+            html += '<div style="margin-bottom:20px;padding:15px;background-color:var(--green-soft);border:1px solid var(--green);border-radius:5px;">';
+            html += '<p style="margin:0;font-weight:bold;color:var(--green);">✅ No Faculty-Student Department Mismatches Found!</p>';
+            html += '<p style="margin:5px 0 0 0;font-size:12px;color:var(--green);"><em>All mentors align with student departments.</em></p>';
             html += '</div>';
         }
         html += '</div>';
@@ -3215,12 +3240,12 @@ function generateFacultyDashboard(analytics) {
         const diffDeptCount = multiMentorStats.diffDept.length;
         const totalMultiple = sameDeptCount + diffDeptCount;
         
-        html += '<div style="margin-top:30px;border-top:2px solid #dee2e6;padding-top:20px;">';
-        html += '<h5 style="margin-top:0;color:#6f42c1;">👥 Students with Multiple Faculty Mentors</h5>';
+        html += '<div style="margin-top:30px;border-top:2px solid var(--line);padding-top:20px;">';
+        html += '<h5 style="margin-top:0;color:var(--gold-deep);">Students with Multiple Faculty Mentors</h5>';
         
         if (totalMultiple > 0) {
-            html += '<div style="margin-bottom:20px;padding:15px;background-color:#f0e9ff;border:1px solid #cfbdf9;border-radius:5px;">';
-            html += `<p style="margin:0 0 10px 0;font-weight:bold;color:#4b2ca3;">Found ${totalMultiple} students with multiple faculty mentor assignments:</p>`;
+            html += '<div style="margin-bottom:20px;padding:15px;background-color:var(--gold-soft);border:1px solid var(--gold);border-radius:5px;">';
+            html += `<p style="margin:0 0 10px 0;font-weight:bold;color:var(--gold-deep);">Found ${totalMultiple} students with multiple faculty mentor assignments:</p>`;
             html += '</div>';
             
             const multiHeaders = [
@@ -3250,9 +3275,9 @@ function generateFacultyDashboard(analytics) {
                     const deptPct = ((count / sameDeptCount) * 100).toFixed(1);
                     multiRows.push({
                         cells: [
-                            { content: `${prefix} ${dept}`, style: 'padding-left:30px; font-size:13px; color:#6c757d;' },
-                            { content: count, style: 'text-align:right; font-size:13px; color:#6c757d;' },
-                            { content: `${deptPct}% of same-dept`, style: 'text-align:right; font-size:13px; color:#6c757d;' }
+                            { content: `${prefix} ${dept}`, style: 'padding-left:30px; font-size:13px; color:var(--ink-soft);' },
+                            { content: count, style: 'text-align:right; font-size:13px; color:var(--ink-soft);' },
+                            { content: `${deptPct}% of same-dept`, style: 'text-align:right; font-size:13px; color:var(--ink-soft);' }
                         ]
                     });
                 });
@@ -3272,7 +3297,7 @@ function generateFacultyDashboard(analytics) {
             
             html += utils.createTable(multiHeaders, multiRows, {
                 grandTotal: {
-                    color: '#4b2ca3',
+                    color: 'var(--gold-deep)',
                     cells: [
                         { content: 'TOTAL — Multiple Mentors' },
                         { content: totalMultiple, align: 'right' },
@@ -3281,12 +3306,12 @@ function generateFacultyDashboard(analytics) {
                 }
             });
             
-            html += '<div style="margin-top:15px;padding:10px;background-color:#f8f9fa;border-radius:5px;font-size:12px;">';
+            html += '<div style="margin-top:15px;padding:10px;background-color:var(--paper);border-radius:5px;font-size:12px;">';
             html += '<strong>Note:</strong> Students with multiple mentors are counted once per department they appear in for department-level statistics.';
             html += '</div>';
         } else {
-            html += '<div style="margin-bottom:20px;padding:15px;background-color:#d4edda;border:1px solid #c3e6cb;border-radius:5px;">';
-            html += '<p style="margin:0;font-weight:bold;color:#155724;">✅ No students have multiple faculty mentor assignments.</p>';
+            html += '<div style="margin-bottom:20px;padding:15px;background-color:var(--green-soft);border:1px solid var(--green);border-radius:5px;">';
+            html += '<p style="margin:0;font-weight:bold;color:var(--green);">✅ No students have multiple faculty mentor assignments.</p>';
             html += '</div>';
         }
         html += '</div>';
@@ -3299,26 +3324,26 @@ function generateFacultyDashboard(analytics) {
         
 function generatePeerDashboard(analytics, totalRecords) {
     if (!analytics) return '<p>No peer advisor data available.</p>';
-    let html = '<h4 style="color:#6f42c1;margin-bottom:15px;">👥 Peer Advisor Dashboard</h4>';
+    let html = '<h4 style="color:var(--gold-deep);margin-bottom:15px;">Peer Advisor Dashboard</h4>';
 
     // Summary cards
     html += `
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
-      <div style="flex:1 1 220px;background:#e7f3ff;border:1px solid #b8daf5;border-radius:8px;padding:14px;">
-        <div style="font-size:12px;color:#0b4f8a;font-weight:600;">Total Students</div>
-        <div style="font-size:24px;font-weight:800;color:#0b4f8a;">${totalRecords}</div>
+      <div style="flex:1 1 220px;background:var(--teal-soft);border:1px solid var(--teal);border-radius:8px;padding:14px;">
+        <div style="font-size:12px;color:var(--teal);font-weight:600;">Total Students</div>
+        <div style="font-size:24px;font-weight:800;color:var(--teal);">${totalRecords}</div>
       </div>
-      <div style="flex:1 1 220px;background:#f0e9ff;border:1px solid #cfbdf9;border-radius:8px;padding:14px;">
-        <div style="font-size:12px;color:#4b2ca3;font-weight:600;">With Peer Advisors</div>
-        <div style="font-size:24px;font-weight:800;color:#4b2ca3;">${analytics.totalStudentsWithPeers}</div>
+      <div style="flex:1 1 220px;background:var(--gold-soft);border:1px solid var(--gold);border-radius:8px;padding:14px;">
+        <div style="font-size:12px;color:var(--gold-deep);font-weight:600;">With Peer Advisors</div>
+        <div style="font-size:24px;font-weight:800;color:var(--gold-deep);">${analytics.totalStudentsWithPeers}</div>
       </div>
-      <div style="flex:1 1 220px;background:#eafaf1;border:1px solid #bfe8d0;border-radius:8px;padding:14px;">
-        <div style="font-size:12px;color:#0f6b3a;font-weight:600;">Assignment Rate</div>
-        <div style="font-size:24px;font-weight:800;color:#0f6b3a;">${analytics.peerAssignmentPercentage}%</div>
+      <div style="flex:1 1 220px;background:var(--green-soft);border:1px solid var(--green);border-radius:8px;padding:14px;">
+        <div style="font-size:12px;color:var(--green);font-weight:600;">Assignment Rate</div>
+        <div style="font-size:24px;font-weight:800;color:var(--green);">${analytics.peerAssignmentPercentage}%</div>
       </div>
-      <div style="flex:1 1 220px;background:#fdecee;border:1px solid #f5c2c7;border-radius:8px;padding:14px;">
-        <div style="font-size:12px;color:#7e1e2a;font-weight:600;">Unique Peers</div>
-        <div style="font-size:24px;font-weight:800;color:#7e1e2a;">${analytics.totalUniquePeers}</div>
+      <div style="flex:1 1 220px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:8px;padding:14px;">
+        <div style="font-size:12px;color:var(--accent);font-weight:600;">Unique Peers</div>
+        <div style="font-size:24px;font-weight:800;color:var(--accent);">${analytics.totalUniquePeers}</div>
       </div>
     </div>`;
 
@@ -3330,7 +3355,7 @@ function generatePeerDashboard(analytics, totalRecords) {
     );
 
     if (Object.keys(filteredDeptStats).length > 0) {
-        html += '<h5 style="color:#6f42c1;">Students by Academic Department</h5>';
+        html += '<h5 style="color:var(--gold-deep);">Students by Academic Department</h5>';
         const headers = [
             { title: 'Student Department', align: 'left' },
             { title: 'Total Students', align: 'right' },
@@ -3346,7 +3371,7 @@ function generatePeerDashboard(analytics, totalRecords) {
                 cells:[
                     { content: dept },
                     { content: stats.totalStudents, style:'text-align:right;' },
-                    { content: stats.withPeers, style:'text-align:right;color:#6f42c1;' },
+                    { content: stats.withPeers, style:'text-align:right;color:var(--gold-deep);' },
                     { content: `${pct}%`, style:'text-align:right;' }
                 ]
             };
@@ -3354,7 +3379,7 @@ function generatePeerDashboard(analytics, totalRecords) {
         const grandPct = grandTotalStudents > 0 ? ((grandTotalWithPeers / grandTotalStudents) * 100).toFixed(1) : '0.0';
         html += utils.createTable(headers, rows, {
             grandTotal: {
-                color:'#6f42c1',
+                color:'var(--gold-deep)',
                 cells:[
                     { content:'GRAND TOTAL' },
                     { content: grandTotalStudents, align:'right' },
@@ -3373,7 +3398,7 @@ function generatePeerDashboard(analytics, totalRecords) {
     );
 
     if (Object.keys(filteredPeerStats).length > 0) {
-        html += '<h5 style="color:#6f42c1;">Peer Advisor Assignments</h5>';
+        html += '<h5 style="color:var(--gold-deep);">Peer Advisor Assignments</h5>';
         const headers = [
             { title: 'Peer Department', align: 'left' },
             { title: 'Peer Advisor Name', align: 'left' },
@@ -3389,14 +3414,14 @@ function generatePeerDashboard(analytics, totalRecords) {
                     row.cells.push({ content: dept, style:'vertical-align:top;font-weight:bold;', rowspan: peerEntries.length });
                 }
                 row.cells.push({ content: peerName });
-                row.cells.push({ content: count, style:'text-align:right;color:#6f42c1;' });
+                row.cells.push({ content: count, style:'text-align:right;color:var(--gold-deep);' });
                 rows.push(row);
                 grandTotalAssignments += count;
             });
         });
         html += utils.createTable(headers, rows, {
             grandTotal: {
-                color:'#6f42c1',
+                color:'var(--gold-deep)',
                 cells:[
                     { content:'GRAND TOTAL', colspan:2 },
                     { content: grandTotalAssignments, align:'right' }
@@ -3407,42 +3432,42 @@ function generatePeerDashboard(analytics, totalRecords) {
 
     // Data quality block remains as-is from previous function (already below in original)
     if (analytics.dataQuality) {
-        html += '<h5 style="color:#dc3545;margin-top:15px;">🔍 Data Quality Report</h5>';
+        html += '<h5 style="color:var(--accent);margin-top:15px;">Data Quality Report</h5>';
         const { dataQuality } = analytics;
         const hasIssues = dataQuality.peersInCaseloadNotInFile.length > 0 || dataQuality.peersInFileNotInCaseload.length > 0;
         if (hasIssues) {
-            html += '<div style="margin-bottom:20px;padding:15px;background-color:#fff3cd;border:1px solid #ffeaa7;border-radius:5px;">';
-            html += '<p style="margin:0 0 10px 0;font-weight:bold;color:#856404;">⚠️ Data Mismatches Found:</p>';
+            html += '<div style="margin-bottom:20px;padding:15px;background-color:var(--gold-soft);border:1px solid var(--gold);border-radius:5px;">';
+            html += '<p style="margin:0 0 10px 0;font-weight:bold;color:var(--gold-deep);">⚠️ Data Mismatches Found:</p>';
             if (dataQuality.peersInCaseloadNotInFile.length > 0) {
-                html += `<p style="margin:5px 0;color:#721c24;"><strong>Peers in Caseload but NOT in Peer File (${dataQuality.peersInCaseloadNotInFile.length}):</strong></p>`;
-                html += '<ul style="margin:5px 0 15px 20px;color:#721c24;">';
+                html += `<p style="margin:5px 0;color:var(--accent);"><strong>Peers in Caseload but NOT in Peer File (${dataQuality.peersInCaseloadNotInFile.length}):</strong></p>`;
+                html += '<ul style="margin:5px 0 15px 20px;color:var(--accent);">';
                 dataQuality.peersInCaseloadNotInFile.forEach(p => html += `<li>${p}</li>`);
                 html += '</ul>';
             }
             if (dataQuality.peersInFileNotInCaseload.length > 0) {
-                html += `<p style="margin:5px 0 8px 0;color:#0c5460;"><strong>Peers in Peer File but NOT in Caseload (${dataQuality.peersInFileNotInCaseload.length}):</strong></p>`;
+                html += `<p style="margin:5px 0 8px 0;color:var(--teal);"><strong>Peers in Peer File but NOT in Caseload (${dataQuality.peersInFileNotInCaseload.length}):</strong></p>`;
                 html += '<table style="width:100%; border-collapse:collapse; margin-bottom:15px; font-size:13px;">';
-                html += '<thead><tr style="background-color:#d1ecf1;">';
-                html += '<th style="text-align:left; padding:7px 10px; border:1px solid #bee5eb; color:#0c5460;">Name</th>';
-                html += '<th style="text-align:left; padding:7px 10px; border:1px solid #bee5eb; color:#0c5460;">Peer Academic Department</th>';
-                html += '<th style="text-align:left; padding:7px 10px; border:1px solid #bee5eb; color:#0c5460;">Note</th>';
+                html += '<thead><tr style="background-color:var(--teal-soft);">';
+                html += '<th style="text-align:left; padding:7px 10px; border:1px solid var(--teal); color:var(--teal);">Name</th>';
+                html += '<th style="text-align:left; padding:7px 10px; border:1px solid var(--teal); color:var(--teal);">Peer Academic Department</th>';
+                html += '<th style="text-align:left; padding:7px 10px; border:1px solid var(--teal); color:var(--teal);">Note</th>';
                 html += '</tr></thead><tbody>';
                 dataQuality.peersInFileNotInCaseload.forEach((peer, i) => {
-                    const bg = i % 2 === 0 ? '#f0f9fc' : '#ffffff';
+                    const bg = i % 2 === 0 ? 'var(--paper)' : '#ffffff';
                     html += `<tr style="background-color:${bg};">`;
-                    html += `<td style="padding:6px 10px; border:1px solid #bee5eb; color:#0c5460;">${peer.name}</td>`;
-                    html += `<td style="padding:6px 10px; border:1px solid #bee5eb; color:#0c5460;">${peer.department}</td>`;
-                    html += `<td style="padding:6px 10px; border:1px solid #bee5eb; color:#0c5460;">${peer.note}</td>`;
+                    html += `<td style="padding:6px 10px; border:1px solid var(--teal); color:var(--teal);">${peer.name}</td>`;
+                    html += `<td style="padding:6px 10px; border:1px solid var(--teal); color:var(--teal);">${peer.department}</td>`;
+                    html += `<td style="padding:6px 10px; border:1px solid var(--teal); color:var(--teal);">${peer.note}</td>`;
                     html += '</tr>';
                 });
                 html += '</tbody></table>';
             }
-            html += `<p style="margin:10px 0 0 0;font-size:12px;color:#856404;"><em>Summary: ${dataQuality.totalPeersInCaseload} unique peers in caseload, ${dataQuality.totalPeersInFile} in peer file</em></p>`;
+            html += `<p style="margin:10px 0 0 0;font-size:12px;color:var(--gold-deep);"><em>Summary: ${dataQuality.totalPeersInCaseload} unique peers in caseload, ${dataQuality.totalPeersInFile} in peer file</em></p>`;
             html += '</div>';
         } else {
-            html += '<div style="margin-bottom:20px;padding:15px;background-color:#d4edda;border:1px solid #c3e6cb;border-radius:5px;">';
-            html += '<p style="margin:0;font-weight:bold;color:#155724;">✅ All peer advisors match between files!</p>';
-            html += `<p style="margin:5px 0 0 0;font-size:12px;color:#155724;"><em>${dataQuality.totalPeersInCaseload} unique peers found in both files</em></p>`;
+            html += '<div style="margin-bottom:20px;padding:15px;background-color:var(--green-soft);border:1px solid var(--green);border-radius:5px;">';
+            html += '<p style="margin:0;font-weight:bold;color:var(--green);">✅ All peer advisors match between files!</p>';
+            html += `<p style="margin:5px 0 0 0;font-size:12px;color:var(--green);"><em>${dataQuality.totalPeersInCaseload} unique peers found in both files</em></p>`;
             html += '</div>';
         }
     }
@@ -3456,24 +3481,24 @@ function generatePeerDashboard(analytics, totalRecords) {
             
             const { degreeStudents, nonDegreeStudents, totalDegree, totalNonDegree, totalStudents } = analytics;
             
-            let html = '<h4 style="color: #333; margin-bottom: 15px;">📋 Admit Type Dashboard</h4>';
+            let html = '<h4 style="color: var(--ink); margin-bottom: 15px;">Admit Type Dashboard</h4>';
             
             // Summary cards
             html += `
             <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
-              <div style="flex:1 1 220px; background:#e7f3ff; border:1px solid #b8daf5; border-radius:8px; padding:14px;">
-                <div style="font-size:12px; color:#0b4f8a; font-weight:600;">Total Students</div>
-                <div style="font-size:24px; font-weight:800; color:#0b4f8a;">${totalStudents}</div>
+              <div style="flex:1 1 220px; background:var(--teal-soft); border:1px solid var(--teal); border-radius:8px; padding:14px;">
+                <div style="font-size:12px; color:var(--teal); font-weight:600;">Total Students</div>
+                <div style="font-size:24px; font-weight:800; color:var(--teal);">${totalStudents}</div>
               </div>
-              <div style="flex:1 1 220px; background:#eafaf1; border:1px solid #bfe8d0; border-radius:8px; padding:14px;">
-                <div style="font-size:12px; color:#0f6b3a; font-weight:600;">Degree Students</div>
-                <div style="font-size:24px; font-weight:800; color:#0f6b3a;">${totalDegree}</div>
-                <div style="font-size:12px; color:#0f6b3a;">${((totalDegree/totalStudents)*100).toFixed(1)}%</div>
+              <div style="flex:1 1 220px; background:var(--green-soft); border:1px solid var(--green); border-radius:8px; padding:14px;">
+                <div style="font-size:12px; color:var(--green); font-weight:600;">Degree Students</div>
+                <div style="font-size:24px; font-weight:800; color:var(--green);">${totalDegree}</div>
+                <div style="font-size:12px; color:var(--green);">${((totalDegree/totalStudents)*100).toFixed(1)}%</div>
               </div>
-              <div style="flex:1 1 220px; background:#fff7e6; border:1px solid #ffe0a6; border-radius:8px; padding:14px;">
-                <div style="font-size:12px; color:#8a5b0b; font-weight:600;">Non-degree Students</div>
-                <div style="font-size:24px; font-weight:800; color:#8a5b0b;">${totalNonDegree}</div>
-                <div style="font-size:12px; color:#8a5b0b;">${((totalNonDegree/totalStudents)*100).toFixed(1)}%</div>
+              <div style="flex:1 1 220px; background:var(--gold-soft); border:1px solid var(--gold); border-radius:8px; padding:14px;">
+                <div style="font-size:12px; color:var(--gold-deep); font-weight:600;">Non-degree Students</div>
+                <div style="font-size:24px; font-weight:800; color:var(--gold-deep);">${totalNonDegree}</div>
+                <div style="font-size:12px; color:var(--gold-deep);">${((totalNonDegree/totalStudents)*100).toFixed(1)}%</div>
               </div>
             </div>`;
             
@@ -3481,10 +3506,10 @@ function generatePeerDashboard(analytics, totalRecords) {
             function buildTypeTable(title, icon, data, total, colorScheme) {
                 let thtml = `<h5 style="color: ${colorScheme.heading}; margin: 20px 0 10px; padding: 10px; background-color: ${colorScheme.bg}; border-left: 4px solid ${colorScheme.heading};">${icon} ${title}</h5>`;
                 thtml += '<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">';
-                thtml += '<thead><tr style="background-color: #f8f9fa;">';
-                thtml += '<th style="border: 1px solid #dee2e6; padding: 10px; text-align: left;">Admit Type</th>';
-                thtml += '<th style="border: 1px solid #dee2e6; padding: 10px; text-align: right;">Count</th>';
-                thtml += '<th style="border: 1px solid #dee2e6; padding: 10px; text-align: right;">% of Group</th>';
+                thtml += '<thead><tr style="background-color: var(--paper);">';
+                thtml += '<th style="border: 1px solid var(--line); padding: 10px; text-align: left;">Admit Type</th>';
+                thtml += '<th style="border: 1px solid var(--line); padding: 10px; text-align: right;">Count</th>';
+                thtml += '<th style="border: 1px solid var(--line); padding: 10px; text-align: right;">% of Group</th>';
                 thtml += '</tr></thead><tbody>';
                 
                 // Sort entries: known types first in order, then Not Found, then any others
@@ -3501,29 +3526,29 @@ function generatePeerDashboard(analytics, totalRecords) {
                 sortedEntries.forEach(([type, count], index) => {
                     const pct = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
                     const isNotFound = type === 'Not Found';
-                    const rowBg = isNotFound ? 'background-color: #fff3cd;' : (index % 2 === 0 ? 'background-color: #f8f9fa;' : '');
+                    const rowBg = isNotFound ? 'background-color: var(--gold-soft);' : (index % 2 === 0 ? 'background-color: var(--paper);' : '');
                     thtml += `<tr style="${rowBg}">`;
-                    thtml += `<td style="border: 1px solid #dee2e6; padding: 8px;">${isNotFound ? '⚠️ ' : ''}${type}</td>`;
-                    thtml += `<td style="border: 1px solid #dee2e6; padding: 8px; text-align: right;">${count}</td>`;
-                    thtml += `<td style="border: 1px solid #dee2e6; padding: 8px; text-align: right;">${pct}%</td>`;
+                    thtml += `<td style="border: 1px solid var(--line); padding: 8px;">${isNotFound ? '⚠️ ' : ''}${type}</td>`;
+                    thtml += `<td style="border: 1px solid var(--line); padding: 8px; text-align: right;">${count}</td>`;
+                    thtml += `<td style="border: 1px solid var(--line); padding: 8px; text-align: right;">${pct}%</td>`;
                     thtml += '</tr>';
                 });
                 
                 // Grand total row
-                thtml += `<tr style="background-color: #e9ecef; font-weight: bold;">`;
-                thtml += `<td style="border: 1px solid #dee2e6; padding: 8px;">Total</td>`;
-                thtml += `<td style="border: 1px solid #dee2e6; padding: 8px; text-align: right;">${total}</td>`;
-                thtml += `<td style="border: 1px solid #dee2e6; padding: 8px; text-align: right;">100.0%</td>`;
+                thtml += `<tr style="background-color: var(--paper); font-weight: bold;">`;
+                thtml += `<td style="border: 1px solid var(--line); padding: 8px;">Total</td>`;
+                thtml += `<td style="border: 1px solid var(--line); padding: 8px; text-align: right;">${total}</td>`;
+                thtml += `<td style="border: 1px solid var(--line); padding: 8px; text-align: right;">100.0%</td>`;
                 thtml += '</tr>';
                 
                 thtml += '</tbody></table>';
                 return thtml;
             }
             
-            html += buildTypeTable('Degree Students', '🎓', degreeStudents, totalDegree, 
-                { heading: '#0f6b3a', bg: '#eafaf1' });
-            html += buildTypeTable('Non-degree Students', '📝', nonDegreeStudents, totalNonDegree, 
-                { heading: '#8a5b0b', bg: '#fff7e6' });
+            html += buildTypeTable('Degree Students', '', degreeStudents, totalDegree, 
+                { heading: 'var(--green)', bg: 'var(--green-soft)' });
+            html += buildTypeTable('Non-degree Students', '', nonDegreeStudents, totalNonDegree, 
+                { heading: 'var(--gold-deep)', bg: 'var(--gold-soft)' });
             
             return html;
         }
@@ -3541,34 +3566,34 @@ function generatePeerDashboard(analytics, totalRecords) {
             const pct = n => totalRecords ? (n / totalRecords * 100).toFixed(1) + '%' : '';
             const selectedCount = optional.filter(t => t.selected).length;
 
-            let html = '<h4 style="color: #28a745; margin-bottom: 15px;">👥 Assigned Staff</h4>';
-            html += '<div style="margin-bottom: 20px; padding: 15px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px;">';
+            let html = '<h4 style="margin-bottom: 15px;">Assigned Staff</h4>';
+            html += '<div style="margin-bottom: 20px; padding: 15px; background-color: var(--green-soft); border: 1px solid var(--green); border-radius: 5px;">';
             html += `<strong>Relationship types found:</strong> ${all.length} (${advisors.length} advisor, ${optional.length} other) &nbsp;&middot;&nbsp; <strong>Selected for export:</strong> <span id="staffSelectedCount">${selectedCount}</span><br>`;
-            html += '<span style="color: #155724;">Tick the relationship types to include as columns in the CSV. Each ticked type becomes a column headed with the relationship name and holding the staff member\'s name (two or more joined with "; ").</span>';
+            html += '<span style="color: var(--green);">Tick the relationship types to include as columns in the CSV. Each ticked type becomes a column headed with the relationship name and holding the staff member\'s name (two or more joined with "; ").</span>';
             html += '</div>';
 
-            html += '<div style="margin-bottom: 10px;"><button onclick="setAllStaffTypes(true)" style="padding:6px 14px;border:1px solid #007bff;background:#fff;color:#007bff;border-radius:4px;cursor:pointer;margin-right:8px;">Select all</button><button onclick="setAllStaffTypes(false)" style="padding:6px 14px;border:1px solid #6c757d;background:#fff;color:#6c757d;border-radius:4px;cursor:pointer;">Clear all</button></div>';
+            html += '<div style="margin-bottom: 10px;"><button onclick="setAllStaffTypes(true)" style="padding:6px 14px;border:1px solid var(--accent);background:#fff;color:var(--accent);border-radius:4px;cursor:pointer;margin-right:8px;">Select all</button><button onclick="setAllStaffTypes(false)" style="padding:6px 14px;border:1px solid var(--ink-soft);background:#fff;color:var(--ink-soft);border-radius:4px;cursor:pointer;">Clear all</button></div>';
 
             const table = (rows, locked) => {
-                let t = '<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:22px;"><thead><tr style="background:#f8f9fa;">';
-                t += '<th style="width:60px;padding:8px;border-bottom:2px solid #dee2e6;text-align:center;">Include</th><th style="padding:8px;border-bottom:2px solid #dee2e6;text-align:left;">Relationship type</th><th style="padding:8px;border-bottom:2px solid #dee2e6;text-align:right;">Students</th><th style="padding:8px;border-bottom:2px solid #dee2e6;text-align:right;">% of all</th><th style="padding:8px;border-bottom:2px solid #dee2e6;text-align:right;">Staff</th><th style="padding:8px;border-bottom:2px solid #dee2e6;text-align:left;">Exported as</th></tr></thead><tbody>';
+                let t = '<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:22px;"><thead><tr style="background:var(--paper);">';
+                t += '<th style="width:60px;padding:8px;border-bottom:2px solid var(--line);text-align:center;">Include</th><th style="padding:8px;border-bottom:2px solid var(--line);text-align:left;">Relationship type</th><th style="padding:8px;border-bottom:2px solid var(--line);text-align:right;">Students</th><th style="padding:8px;border-bottom:2px solid var(--line);text-align:right;">% of all</th><th style="padding:8px;border-bottom:2px solid var(--line);text-align:right;">Staff</th><th style="padding:8px;border-bottom:2px solid var(--line);text-align:left;">Exported as</th></tr></thead><tbody>';
                 rows.forEach(ty => {
                     const n = ty.students.size, staffN = Object.keys(ty.staff).length;
                     const cell = locked
                         ? '<input type="checkbox" checked disabled title="Advisor relationships always feed Advising Office / Professional Advisor" style="transform:scale(1.2);">'
                         : `<input type="checkbox" ${ty.selected ? 'checked' : ''} onchange="toggleStaffType('${esc(ty.key).replace(/'/g, "\\'")}', this.checked)" style="transform:scale(1.2);cursor:pointer;">`;
-                    const exportedAs = locked ? '<span style="color:#6c757d;">Advising Office / Professional Advisor</span>' : `<code style="background:#f1f3f5;padding:2px 6px;border-radius:4px;">${esc(ty.column)}</code>`;
-                    t += `<tr style="border-bottom:1px solid #eee;"><td style="padding:8px;text-align:center;">${cell}</td><td style="padding:8px;">${esc(ty.label)}${ty.key === 'program director' ? ' <span style="font-size:11px;color:#6c757d;">(all "Program Director - …" variants; value shows the program)</span>' : ''}</td><td style="padding:8px;text-align:right;">${n.toLocaleString()}</td><td style="padding:8px;text-align:right;color:#6c757d;">${pct(n)}</td><td style="padding:8px;text-align:right;">${staffN}</td><td style="padding:8px;">${exportedAs}</td></tr>`;
+                    const exportedAs = locked ? '<span style="color:var(--ink-soft);">Advising Office / Professional Advisor</span>' : `<code style="background:var(--paper);padding:2px 6px;border-radius:4px;">${esc(ty.column)}</code>`;
+                    t += `<tr style="border-bottom:1px solid var(--line);"><td style="padding:8px;text-align:center;">${cell}</td><td style="padding:8px;">${esc(ty.label)}${ty.key === 'program director' ? ' <span style="font-size:11px;color:var(--ink-soft);">(all "Program Director - …" variants; value shows the program)</span>' : ''}</td><td style="padding:8px;text-align:right;">${n.toLocaleString()}</td><td style="padding:8px;text-align:right;color:var(--ink-soft);">${pct(n)}</td><td style="padding:8px;text-align:right;">${staffN}</td><td style="padding:8px;">${exportedAs}</td></tr>`;
                 });
                 return t + '</tbody></table>';
             };
 
             if (advisors.length) {
-                html += '<h5 style="margin:10px 0 8px;color:#333;">Advisor relationships <span style="font-size:12px;color:#6c757d;font-weight:normal;">(built in, not editable)</span></h5>';
+                html += '<h5 style="margin:10px 0 8px;color:var(--ink);">Advisor relationships <span style="font-size:12px;color:var(--ink-soft);font-weight:normal;">(built in, not editable)</span></h5>';
                 html += table(advisors, true);
             }
-            html += '<h5 style="margin:10px 0 8px;color:#333;">Other relationships</h5>';
-            html += optional.length ? table(optional, false) : '<p style="color:#6c757d;">None found.</p>';
+            html += '<h5 style="margin:10px 0 8px;color:var(--ink);">Other relationships</h5>';
+            html += optional.length ? table(optional, false) : '<p style="color:var(--ink-soft);">None found.</p>';
             return html;
         }
 
@@ -3591,40 +3616,39 @@ function generatePeerDashboard(analytics, totalRecords) {
             
             const { totalCategories, totalStudents, featuredCategories, otherCategories } = analytics;
             
-            let html = '<h4 style="color: #28a745; margin-bottom: 15px;">📋 Category Manager</h4>';
+            let html = '<h4 style="margin-bottom: 15px;">Category Manager</h4>';
 
             
             // Summary statistics
-            html += '<div style="margin-bottom: 20px; padding: 15px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px;">';
+            html += '<div style="margin-bottom: 20px; padding: 15px; background-color: var(--green-soft); border: 1px solid var(--green); border-radius: 5px;">';
             html += `<strong>Total Categories Found:</strong> ${totalCategories} (${featuredCategories.length} featured + ${otherCategories.length} other)<br>`;
             html += `<strong>Total Students:</strong> ${totalStudents}<br>`;
-            html += '<span style="color: #155724;">Select which categories to include as columns in your CSV export. Major categories are excluded since they\'re extracted separately.</span>';
+            html += '<span style="color: var(--green);">Select which categories to include as columns in your CSV export. Major categories are excluded since they\'re extracted separately.</span>';
             html += '</div>';
             
             // Control buttons
             html += '<div style="margin-bottom: 20px;">';
-            html += '<button onclick="selectAllCategories()" style="background-color: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Select All</button>';
-            html += '<button onclick="deselectAllCategories()" style="background-color: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Deselect All</button>';
-            html += '<button onclick="selectOnlyFeatured()" style="background-color: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Select Only Featured</button>';
-            html += '<button onclick="selectOnlyCommon()" style="background-color: #17a2b8; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Select Only Common (>5%)</button>';
+            html += '<button onclick="selectAllCategories()" style="margin-right:10px;">Select All</button>';
+            html += '<button class="neutral" onclick="deselectAllCategories()" style="margin-right:10px;">Deselect All</button>';
+            html += '<button class="secondary" onclick="selectOnlyFeatured()" style="margin-right:10px;">Select Only Featured</button>';
+            html += '<button class="secondary" onclick="selectOnlyCommon()">Select Only Common (>5%)</button>';
             html += '</div>';
 
             // Search / filter bar. Filters every category table (featured + grouped)
             // on a case-insensitive substring; groups with matches auto-expand.
-            html += '<div id="catSearchBar" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:18px; padding:12px 14px; background:#f8f9fa; border:1px solid #dee2e6; border-radius:6px;">';
-            html += '<span style="font-size:16px;">\uD83D\uDD0D</span>';
-            html += '<input id="catSearchInput" type="text" placeholder="Search categories\u2026" oninput="filterCategories(this.value)" style="flex:1; min-width:220px; padding:8px 12px; border:1px solid #ced4da; border-radius:4px; font-size:14px;">';
-            html += '<span id="catSearchCount" style="font-size:12px; color:#6c757d; min-width:120px;"></span>';
-            html += '<button onclick="selectMatchingCategories(true)" style="background-color:#28a745; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:13px;">Select matching</button>';
-            html += '<button onclick="selectMatchingCategories(false)" style="background-color:#6c757d; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:13px;">Clear matching</button>';
-            html += '<button onclick="clearCategorySearch()" style="background:none; border:1px solid #ced4da; color:#495057; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:13px;">\u2715</button>';
+            html += '<div id="catSearchBar" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:18px; padding:12px 14px; background:var(--paper); border:1px solid var(--line); border-radius:6px;">';
+                        html += '<input id="catSearchInput" type="text" placeholder="Search categories\u2026" oninput="filterCategories(this.value)" style="flex:1; min-width:220px; padding:8px 12px; border:1px solid var(--line); border-radius:4px; font-size:14px;">';
+            html += '<span id="catSearchCount" style="font-size:12px; color:var(--ink-soft); min-width:120px;"></span>';
+            html += '<button onclick="selectMatchingCategories(true)">Select matching</button>';
+            html += '<button class="neutral" onclick="selectMatchingCategories(false)">Clear matching</button>';
+            html += '<button onclick="clearCategorySearch()" style="background:none; border:1px solid var(--line); color:var(--ink-soft); padding:6px 12px; border-radius:4px; cursor:pointer; font-size:13px;">\u2715</button>';
             html += '</div>';
             
             if (totalCategories > 0) {
                 // Featured Categories Section
                 if (featuredCategories.length > 0) {
                     html += '<div style="margin-bottom: 30px;">';
-                    html += '<h5 style="color: #007bff; margin-bottom: 15px; padding: 10px; background-color: #e7f3ff; border-left: 4px solid #007bff;">⭐ Featured Categories</h5>';
+                    html += '<h5 style="color: var(--accent); margin-bottom: 15px; padding: 10px 0 8px; border-bottom: 2px solid var(--accent);">Featured Categories</h5>';
                     html += generateCategoryTable(featuredCategories, totalStudents, 'featured');
                     html += '</div>';
                 }
@@ -3632,22 +3656,22 @@ function generatePeerDashboard(analytics, totalRecords) {
                 // Other Categories Section
                 if (otherCategories.length > 0) {
                     html += '<div>';
-                    html += '<h5 style="color: #6c757d; margin-bottom: 8px; padding: 10px; background-color: #f8f9fa; border-left: 4px solid #6c757d;">📂 Other Categories</h5>';
-                    html += '<p style="margin: 0 0 12px 2px; font-size: 12px; color: #6c757d;">Grouped by type, alphabetical within each group. Click a group to expand.</p>';
+                    html += '<h5 style="color: var(--ink-soft); margin-bottom: 8px; padding: 10px; background-color: var(--paper); border-left: 4px solid var(--ink-soft);">Other Categories</h5>';
+                    html += '<p style="margin: 0 0 12px 2px; font-size: 12px; color: var(--ink-soft);">Grouped by type, alphabetical within each group. Click a group to expand.</p>';
                     html += generateGroupedCategorySections(otherCategories, totalStudents);
                     html += '</div>';
                 }
                 
                 // Legend
-                html += '<div style="margin-top: 15px; padding: 10px; background-color: #f8f9fa; border-radius: 5px; font-size: 12px;">';
+                html += '<div style="margin-top: 15px; padding: 10px; background-color: var(--paper); border-radius: 5px; font-size: 12px;">';
                 html += '<strong>Legend:</strong> ';
-                html += '<span style="background-color: #e7f3ff; padding: 2px 6px; border-radius: 3px; margin-left: 10px;">Blue rows</span> = Featured categories ';
-                html += '<span style="background-color: #fff3cd; padding: 2px 6px; border-radius: 3px; margin-left: 10px;">Yellow rows</span> = Common categories (>5% of students)';
+                html += '<span style="background-color: var(--teal-soft); padding: 2px 6px; border-radius: 3px; margin-left: 10px;">Teal rows</span> = Featured categories ';
+                html += '<span style="background-color: var(--gold-soft); padding: 2px 6px; border-radius: 3px; margin-left: 10px;">Yellow rows</span> = Common categories (>5% of students)';
                 html += '</div>';
                 
                 // Current selection summary
-                html += '<div style="margin-top: 20px; padding: 15px; background-color: #e7f3ff; border: 1px solid #b8dae5; border-radius: 5px;">';
-                html += '<h5 style="margin-top: 0; color: #0c5460;">📊 Current Selection Summary</h5>';
+                html += '<div style="margin-top: 20px; padding: 15px; background-color: var(--teal-soft); border: 1px solid var(--teal); border-radius: 5px;">';
+                html += '<h5 style="margin-top: 0; color: var(--teal);">Current Selection Summary</h5>';
                 html += '<div id="selectionSummary">';
                 const totalSelected = featuredCategories.filter(([,stats]) => stats.selected).length + otherCategories.filter(([,stats]) => stats.selected).length;
                 html += `<strong>Selected Categories:</strong> <span id="selectedCount">${totalSelected}</span> of ${totalCategories}<br>`;
@@ -3656,7 +3680,7 @@ function generatePeerDashboard(analytics, totalRecords) {
                 html += '</div>';
                 
             } else {
-                html += '<div style="text-align: center; padding: 20px; color: #666; font-style: italic;">No categories found in the data.</div>';
+                html += '<div style="text-align: center; padding: 20px; color: var(--ink-soft); font-style: italic;">No categories found in the data.</div>';
             }
             
             return html;
@@ -3668,14 +3692,14 @@ function generatePeerDashboard(analytics, totalRecords) {
         // "Transfer:"). Anything unmatched falls into the final "Other" bucket.
         // v1.5: trimmed to the buckets other advising staff use; everything else is "Other".
         const CATEGORY_GROUPS = [
-            { key: 'cohort',    label: 'New Student Cohorts',               icon: '🌱', test: c => c.startsWith('New Student:') },
-            { key: 'transout',  label: 'Transfer Out',                      icon: '📤', test: c => c.startsWith('Transfer Out:') },
-            { key: 'transin',   label: 'Transfer In',                       icon: '📥', test: c => c.startsWith('Transfer:') },
-            { key: 'finaid',    label: 'Financial Aid',                     icon: '💵', test: c => c.startsWith('FA ') },
-            { key: 'si',        label: 'Service Indicators',                icon: '🚩', test: c => c.startsWith('SI:') },
-            { key: 'sg',        label: 'Student Groups',                    icon: '👥', test: c => c.startsWith('SG:') },
-            { key: 'enroll',    label: 'Enrollment & Sessions',             icon: '📝', test: c => c.startsWith('Enrolled in') || c.startsWith('Enrolled:') || c.startsWith('Only Enrolled') },
-            { key: 'unsorted',  label: 'Other',                             icon: '📂', test: () => true }
+            { key: 'cohort',    label: 'New Student Cohorts',               icon: '', test: c => c.startsWith('New Student:') },
+            { key: 'transout',  label: 'Transfer Out',                      icon: '', test: c => c.startsWith('Transfer Out:') },
+            { key: 'transin',   label: 'Transfer In',                       icon: '', test: c => c.startsWith('Transfer:') },
+            { key: 'finaid',    label: 'Financial Aid',                     icon: '', test: c => c.startsWith('FA ') },
+            { key: 'si',        label: 'Service Indicators',                icon: '', test: c => c.startsWith('SI:') },
+            { key: 'sg',        label: 'Student Groups',                    icon: '', test: c => c.startsWith('SG:') },
+            { key: 'enroll',    label: 'Enrollment & Sessions',             icon: '', test: c => c.startsWith('Enrolled in') || c.startsWith('Enrolled:') || c.startsWith('Only Enrolled') },
+            { key: 'unsorted',  label: 'Other',                             icon: '', test: () => true }
         ];
 
         function groupOtherCategories(categories) {
@@ -3768,14 +3792,14 @@ function generatePeerDashboard(analytics, totalRecords) {
 
             groups.forEach(group => {
                 const selectedInGroup = group.items.filter(([, stats]) => stats.selected).length;
-                html += `<div data-catgroup="${group.key}" style="margin-bottom: 10px; border: 1px solid #dee2e6; border-radius: 6px; overflow: hidden;">`;
-                html += `<button onclick="toggleCategoryGroup('${group.key}')" style="display:flex; align-items:center; justify-content:space-between; width:100%; padding:10px 14px; background:#f8f9fa; border:none; cursor:pointer; font-size:14px; font-weight:600; color:#495057; text-align:left;">`;
-                html += `<span>${group.icon} ${group.label} <span style="font-weight:400; color:#6c757d;">(${group.items.length})</span>`;
-                html += ` <span id="catGroupPill_${group.key}" style="background:#d4edda; color:#155724; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:600; margin-left:6px; display:${selectedInGroup > 0 ? 'inline' : 'none'};">${selectedInGroup} selected</span>`;
+                html += `<div data-catgroup="${group.key}" style="margin-bottom: 10px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden;">`;
+                html += `<button onclick="toggleCategoryGroup('${group.key}')" style="display:flex; align-items:center; justify-content:space-between; width:100%; padding:10px 14px; background:var(--paper); border:none; cursor:pointer; font-size:14px; font-weight:600; color:var(--ink-soft); text-align:left;">`;
+                html += `<span>${group.icon} ${group.label} <span style="font-weight:400; color:var(--ink-soft);">(${group.items.length})</span>`;
+                html += ` <span id="catGroupPill_${group.key}" style="background:var(--green-soft); color:var(--green); padding:1px 7px; border-radius:10px; font-size:11px; font-weight:600; margin-left:6px; display:${selectedInGroup > 0 ? 'inline' : 'none'};">${selectedInGroup} selected</span>`;
                 html += '</span>';
-                html += `<span id="catGroupArrow_${group.key}" style="font-size:11px; color:#6c757d; transition:transform 0.25s ease;">▼</span>`;
+                html += `<span id="catGroupArrow_${group.key}" style="font-size:11px; color:var(--ink-soft); transition:transform 0.25s ease;">▼</span>`;
                 html += '</button>';
-                html += `<div id="catGroupBody_${group.key}" style="display:none; max-height:340px; overflow-y:auto; border-top:1px solid #dee2e6;">`;
+                html += `<div id="catGroupBody_${group.key}" style="display:none; max-height:340px; overflow-y:auto; border-top:1px solid var(--line);">`;
                 html += generateCategoryTable(group.items, totalStudents, 'otherGrp' + group.key);
                 html += '</div>';
                 html += '</div>';
@@ -3788,16 +3812,16 @@ function generatePeerDashboard(analytics, totalRecords) {
             let html = '<table style="width: 100%; border-collapse: collapse;">';
             
             if (section === 'featured') {
-                html += '<thead style="background-color: #e7f3ff;">';
+                html += '<thead style="background-color: var(--teal-soft);">';
             } else {
-                html += '<thead style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 10;">';
+                html += '<thead style="position: sticky; top: 0; background-color: var(--paper); z-index: 10;">';
             }
             
             html += '<tr>';
-            html += '<th style="border: 1px solid #dee2e6; padding: 10px; text-align: center; width: 60px;">Include</th>';
-            html += '<th style="border: 1px solid #dee2e6; padding: 10px; text-align: left;">Category</th>';
-            html += '<th style="border: 1px solid #dee2e6; padding: 10px; text-align: right; width: 100px;">Student Count</th>';
-            html += '<th style="border: 1px solid #dee2e6; padding: 10px; text-align: right; width: 100px;">% of Students</th>';
+            html += '<th style="border: 1px solid var(--line); padding: 10px; text-align: center; width: 60px;">Include</th>';
+            html += '<th style="border: 1px solid var(--line); padding: 10px; text-align: left;">Category</th>';
+            html += '<th style="border: 1px solid var(--line); padding: 10px; text-align: right; width: 100px;">Student Count</th>';
+            html += '<th style="border: 1px solid var(--line); padding: 10px; text-align: right; width: 100px;">% of Students</th>';
             html += '</tr></thead><tbody>';
             
             categories.forEach(([category, stats], index) => {
@@ -3807,20 +3831,20 @@ function generatePeerDashboard(analytics, totalRecords) {
                 
                 let rowStyle = '';
                 if (isFeatured) {
-                    rowStyle = 'style="background-color: #f0f8ff;"';
+                    rowStyle = 'style="background-color: var(--teal-soft);"';
                 } else if (isCommon) {
-                    rowStyle = 'style="background-color: #fff3cd;"';
+                    rowStyle = 'style="background-color: var(--gold-soft);"';
                 }
                 
                 const checkboxId = `category_${section}_${index}`;
                 
                 html += `<tr ${rowStyle} data-cat="${category.replace(/"/g, '&quot;').toLowerCase()}">`;
-                html += `<td style="border: 1px solid #dee2e6; padding: 8px; text-align: center;">`;
+                html += `<td style="border: 1px solid var(--line); padding: 8px; text-align: center;">`;
                 html += `<input type="checkbox" id="${checkboxId}" ${stats.selected ? 'checked' : ''} onchange="toggleCategory('${category.replace(/'/g, "\\'")}', this.checked)" style="transform: scale(1.2);">`;
                 html += `</td>`;
-                html += `<td style="border: 1px solid #dee2e6; padding: 8px; font-size: 13px;">${category}</td>`;
-                html += `<td style="border: 1px solid #dee2e6; padding: 8px; text-align: right; font-weight: bold; color: #28a745;">${stats.count}</td>`;
-                html += `<td style="border: 1px solid #dee2e6; padding: 8px; text-align: right;">${percentage}%</td>`;
+                html += `<td style="border: 1px solid var(--line); padding: 8px; font-size: 13px;">${category}</td>`;
+                html += `<td style="border: 1px solid var(--line); padding: 8px; text-align: right; font-weight: bold; color: var(--green);">${stats.count}</td>`;
+                html += `<td style="border: 1px solid var(--line); padding: 8px; text-align: right;">${percentage}%</td>`;
                 html += `</tr>`;
             });
             
@@ -3962,7 +3986,7 @@ function generatePeerDashboard(analytics, totalRecords) {
             
             // Disable button and show progress
             copyBtn.disabled = true;
-            copyBtn.style.backgroundColor = '#6c757d';
+            copyBtn.style.backgroundColor = 'var(--ink-soft)';
             copyBtn.style.cursor = 'not-allowed';
             progressContainer.style.display = 'block';
             
@@ -4065,7 +4089,7 @@ function generatePeerDashboard(analytics, totalRecords) {
                             
                             // Reset button and hide progress
                             copyBtn.disabled = false;
-                            copyBtn.style.backgroundColor = '#17a2b8';
+                            copyBtn.style.backgroundColor = 'var(--teal)';
                             copyBtn.style.cursor = 'pointer';
                             progressContainer.style.display = 'none';
                         }, 500);
@@ -4091,7 +4115,7 @@ function generatePeerDashboard(analytics, totalRecords) {
                             
                             // Reset button and hide progress
                             copyBtn.disabled = false;
-                            copyBtn.style.backgroundColor = '#17a2b8';
+                            copyBtn.style.backgroundColor = 'var(--teal)';
                             copyBtn.style.cursor = 'pointer';
                             progressContainer.style.display = 'none';
                         }, 500);
@@ -4103,7 +4127,7 @@ function generatePeerDashboard(analytics, totalRecords) {
                     
                     // Reset button and hide progress
                     copyBtn.disabled = false;
-                    copyBtn.style.backgroundColor = '#17a2b8';
+                    copyBtn.style.backgroundColor = 'var(--teal)';
                     copyBtn.style.cursor = 'pointer';
                     progressContainer.style.display = 'none';
                 }
@@ -4112,24 +4136,11 @@ function generatePeerDashboard(analytics, totalRecords) {
 
         // TAB SWITCHING
         window.showTab = function(tabName) {
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.style.display = 'none';
-            });
-            
-            document.querySelectorAll('.tab-button').forEach(button => {
-                button.style.borderBottom = '3px solid transparent';
-                button.style.fontWeight = 'normal';
-                button.style.color = '#666';
-            });
-            
+            document.querySelectorAll('.tab-content').forEach(content => { content.style.display = 'none'; });
+            document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active'));
             document.getElementById(tabName + 'Content').style.display = 'block';
-            
             const activeTab = document.getElementById(tabName + 'Tab');
-            if (activeTab) {
-                activeTab.style.borderBottom = '3px solid #007bff';
-                activeTab.style.fontWeight = 'bold';
-                activeTab.style.color = '#333';
-            }
+            if (activeTab) activeTab.classList.add('active');
         };
 
         // EVENT LISTENERS
