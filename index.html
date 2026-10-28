@@ -1,12 +1,27 @@
 <!--
 ================================================================================
   App:          LaGuardia Navigate Caseload Generator Lite
-  Version:      2.0
-  Released:     October 6, 2026
+  Version:      2.1
+  Released:     October 28, 2026
   Developed by: Josh Goldblatt using Claude
 ================================================================================
   CHANGELOG (most recent first)
 --------------------------------------------------------------------------------
+  v2.1  2026-10-28
+    - New advising office "CIE Integrated Advising" with four primary advisor
+      roles, all mapped to it in ROLE_TO_OFFICE and ROLES.ADVISOR:
+        Academic Advisor - CIE - Engineering
+        Academic Advisor - CIE - Business & Healthcare Management
+        Academic Advisor - CIE - Green Jobs
+        Academic Advisor - CIE - Psychology
+      "CIE - Engineering" is the renamed Careers in Engineering role. The legacy
+      tags "Academic Advisor - Careers in Engineering" and "Careers in
+      Engineering Advisor" still map to the office "Careers in Engineering" so
+      FA24-SP26 files reprocess exactly as before; a file containing both
+      spellings will show both offices.
+    - Downstream (not changed here): the Advising Metrics App's TRACKED_OFFICES
+      and its location -> office map, and the Tableau office filters, do not
+      yet know "CIE Integrated Advising". Open item for the Metrics App.
   v2.0  2026-10-06
     - Semester picker removed. Processing starts directly from the Process
       Files button; nothing is asked beyond the file. The export no longer has
@@ -118,7 +133,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Navigate Caseload Generator Lite v2.0</title>
+    <title>Navigate Caseload Generator Lite v2.1</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js">
 </script>
     <style>
@@ -290,7 +305,7 @@
     <div class="container">
         <h1>📚 Navigate Caseload Generator Lite</h1>
         <p style="margin-top: -20px; margin-bottom: 5px; color: #666; font-style: italic;">Developed by Josh Goldblatt using Claude</p>
-        <div class="subtitle" style="margin-bottom: 16px;">Version 2.0 - Released October 6, 2026</div>
+        <div class="subtitle" style="margin-bottom: 16px;">Version 2.1 - Released October 28, 2026</div>
 
         <!-- Changelog Section -->
         <div style="margin-bottom: 24px; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;">
@@ -299,6 +314,16 @@
                 <span id="changelogArrow" style="font-size:12px; color:#6c757d; transition:transform 0.25s ease;">▼</span>
             </button>
             <div id="changelogBody" style="display:none; padding:0 18px 16px; background:#fff; max-height:420px; overflow-y:auto;">
+
+                <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid #f0f0f0;">
+                    <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px;">
+                        <span style="font-weight:700; font-size:14px; color:#007bff;">v2.1</span>
+                        <span style="font-size:12px; color:#6c757d;">October 28, 2026</span>
+                    </div>
+                    <ul style="margin:4px 0 0 0; padding-left:20px;">
+                        <li style="font-size:13px; color:#495057; line-height:1.6;"><strong>CIE Integrated Advising:</strong> new advising office. Recognizes <code>Academic Advisor - CIE - Engineering</code>, <code>- CIE - Business &amp; Healthcare Management</code>, <code>- CIE - Green Jobs</code>, and <code>- CIE - Psychology</code>. Legacy "Careers in Engineering" tags still map to the Careers in Engineering office.</li>
+                    </ul>
+                </div>
                 <div style="margin-top:16px; padding-bottom:14px; border-bottom:1px solid #f0f0f0;">
                     <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px;">
                         <span style="font-weight:700; font-size:14px; color:#007bff;">v2.0</span>
@@ -423,6 +448,13 @@
     'academic advisor - international student services': 'International Student Services',
     'careers in engineering advisor': 'Careers in Engineering',
     'academic advisor - careers in engineering': 'Careers in Engineering',
+    // CIE Integrated Advising (added Oct 2026). "CIE - Engineering" is the renamed
+    // Careers in Engineering role; the two legacy tags above keep their old office
+    // so earlier semester files reprocess unchanged.
+    'academic advisor - cie - engineering': 'CIE Integrated Advising',
+    'academic advisor - cie - business & healthcare management': 'CIE Integrated Advising',
+    'academic advisor - cie - green jobs': 'CIE Integrated Advising',
+    'academic advisor - cie - psychology': 'CIE Integrated Advising',
     'cuny 2x tech computer science advisor': 'CUNY 2X Tech Academy',
     'cuny 2x tech academy advisor': 'CUNY 2X Tech Academy',
     'academic advisor - cuny 2x tech academy': 'CUNY 2X Tech Academy',
@@ -447,6 +479,8 @@ ROLES: {
                          'student advising services advisor', 'academic advisor - student advising services',
                          'international student services advisor', 'academic advisor - international student services',
                          'careers in engineering advisor', 'academic advisor - careers in engineering',
+                         'academic advisor - cie - engineering', 'academic advisor - cie - business & healthcare management',
+                         'academic advisor - cie - green jobs', 'academic advisor - cie - psychology',
                          'cuny 2x tech computer science advisor', 'cuny 2x tech academy advisor', 'academic advisor - cuny 2x tech academy',
                          'academic advisor - cybersecurity online program',
                          'paramedic advisor', 'academic advisor - paramedic program',
